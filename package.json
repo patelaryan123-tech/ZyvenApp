@@ -1,0 +1,28 @@
+{
+  "name": "zyven",
+  "version": "1.0.0",
+  "description": "ZYVEN — Full-Stack AI Healthcare Assistance Platform",
+  "private": true,
+  "scripts": {
+    "start:server": "cd server && npm start",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build",
+    "build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "healthcare",
+    "ai",
+    "senior-care",
+    "full-stack",
+    "gemini",
+    "react",
+    "express"
+  ],
+  "author": "ZYVEN Team",
+  "license": "MIT"
+}
