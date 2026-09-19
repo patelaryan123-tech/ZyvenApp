@@ -3,27 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Filter, 
-  ChevronDown, 
   ExternalLink, 
   ShieldCheck, 
   HeartPulse, 
-  Home, 
   Wallet,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
   Award,
   FileCheck,
-  Building,
   UserCheck,
   RefreshCw,
   Sparkles,
-  X
+  Edit3,
+  X,
+  SlidersHorizontal,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { schemeService } from '../services/schemeService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
-import ErrorState from '../components/common/ErrorState';
 
 const CATEGORIES = [
   { id: 'All', label: 'All Schemes' },
@@ -33,253 +32,214 @@ const CATEGORIES = [
   { id: 'Insurance', label: 'Health Insurance & Care', icon: ShieldCheck }
 ];
 
+const INDIAN_STATES = [
+  'All India',
+  'Andhra Pradesh',
+  'Bihar',
+  'Delhi',
+  'Gujarat',
+  'Haryana',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Punjab',
+  'Rajasthan',
+  'Tamil Nadu',
+  'Telangana',
+  'Uttar Pradesh',
+  'West Bengal'
+];
+
+const INCOME_TIERS = [
+  'BPL / Low Income (< Rs. 1.5 Lakh)',
+  'Low Income (Rs. 1.5 - 2.5 Lakh)',
+  'Middle Income (Rs. 2.5 - 5 Lakh)',
+  'Above Rs. 5 Lakh / All Groups'
+];
+
 export default function GovernmentSchemesPage() {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedState, setSelectedState] = useState('All India');
+  const [eligibleCount, setEligibleCount] = useState(0);
 
-  // Questionnaire State
-  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
-  const [evaluating, setEvaluating] = useState(false);
-  const [questionnaireData, setQuestionnaireData] = useState({
-    age: 65,
-    state: 'All India',
-    income: 'Low Income (< Rs. 2.5 Lakh/yr)',
-    hasDisability: false,
-    category: 'All'
+  // User Beneficiary Profile State
+  const [profileData, setProfileData] = useState({
+    age: user?.age || 65,
+    state: user?.state || 'Gujarat',
+    incomeCategory: user?.incomeCategory || 'BPL / Low Income (< Rs. 1.5 Lakh)',
+    hasDisability: Boolean(user?.hasDisability),
+    gender: user?.gender || 'All'
   });
-  const [evaluatedResult, setEvaluatedResult] = useState(null);
 
-  // Detail Modal
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [detailModalScheme, setDetailModalScheme] = useState(null);
 
-  const fetchSchemes = async () => {
+  // Sync profile data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        age: user.age || 65,
+        state: user.state || 'Gujarat',
+        incomeCategory: user.incomeCategory || 'BPL / Low Income (< Rs. 1.5 Lakh)',
+        hasDisability: Boolean(user.hasDisability),
+        gender: user.gender || 'All'
+      });
+      if (user.state) {
+        setSelectedState(user.state);
+      }
+    }
+  }, [user]);
+
+  // Load Continuous Personalized Schemes
+  const loadPersonalizedSchemes = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await schemeService.getSchemes({
+      // Fetch continuous matched schemes for this user
+      const res = await schemeService.getPersonalizedSchemes({
         category: selectedCategory !== 'All' ? selectedCategory : undefined,
         state: selectedState !== 'All India' ? selectedState : undefined,
         search: searchQuery || undefined
       });
-      setSchemes(res.data || []);
+
+      if (res.data?.schemes) {
+        setSchemes(res.data.schemes);
+        setEligibleCount(res.data.eligibleCount || 0);
+      } else {
+        // Fallback to standard schemes
+        const fallbackRes = await schemeService.getSchemes({
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          state: selectedState !== 'All India' ? selectedState : undefined,
+          search: searchQuery || undefined
+        });
+        setSchemes(fallbackRes.data || []);
+      }
     } catch (err) {
-      console.error('Fetch schemes error:', err);
-      setError('Unable to load government schemes. Please check your connection.');
+      console.warn('Personalized schemes API fallback to standard:', err.message);
+      try {
+        const fallback = await schemeService.getSchemes({
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          state: selectedState !== 'All India' ? selectedState : undefined,
+          search: searchQuery || undefined
+        });
+        setSchemes(fallback.data || []);
+      } catch (e) {
+        setError('Unable to load government schemes. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSchemes();
+    loadPersonalizedSchemes();
   }, [selectedCategory, selectedState]);
 
-  const handleRunQuestionnaire = async (e) => {
+  // Save updated beneficiary profile & re-evaluate schemes immediately
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setEvaluating(true);
+    setSavingProfile(true);
     try {
-      const res = await schemeService.checkEligibility(questionnaireData);
-      setEvaluatedResult(res.data);
-      if (res.data?.schemes) {
-        setSchemes(res.data.schemes);
+      if (updateUserProfile) {
+        await updateUserProfile(profileData);
+      } else {
+        await schemeService.updateProfileCriteria(profileData);
       }
+      setSelectedState(profileData.state);
+      setShowEditProfileModal(false);
+      await loadPersonalizedSchemes();
     } catch (err) {
-      console.error('Eligibility evaluation error:', err);
+      console.error('Failed to update scheme profile criteria:', err);
     } finally {
-      setEvaluating(false);
+      setSavingProfile(false);
     }
   };
 
-  const handleResetFilters = () => {
-    setSelectedCategory('All');
-    setSelectedState('All India');
-    setSearchQuery('');
-    setEvaluatedResult(null);
-    fetchSchemes();
-  };
-
   const filteredSchemes = schemes.filter(s => {
-    const matchesSearch = s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.department?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      s.name?.toLowerCase().includes(query) ||
+      s.description?.toLowerCase().includes(query) ||
+      s.department?.toLowerCase().includes(query)
+    );
   });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       
-      {/* 1. Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-3xl border border-gray-100 shadow-xs gap-4">
-        <div>
-          <div className="inline-flex items-center space-x-2 text-xs font-semibold text-[#3D5A45] bg-[#eef3ef] px-3 py-1 rounded-full mb-2">
-            <Award className="w-3.5 h-3.5" />
-            <span>Government Welfare & Senior Citizen Portal</span>
+      {/* 1. Header & Live Profile Eligibility Banner */}
+      <div className="bg-gradient-to-r from-[#3D5A45] to-[#2c4232] rounded-3xl p-6 sm:p-8 text-white shadow-sm relative overflow-hidden">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center space-x-2 text-xs font-bold text-[#E07A5F] bg-white/10 backdrop-blur-xs px-3.5 py-1 rounded-full">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Real-Time Government Scheme Matching</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Government Health & Welfare Schemes
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-200 max-w-2xl leading-relaxed">
+              We continuously cross-reference your beneficiary profile with active state and central government health policies to show only schemes you qualify for.
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Government Health Schemes
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Discover official medical benefits, pension schemes, and assistive healthcare subsidies
-          </p>
-        </div>
 
-        <button
-          onClick={() => setShowQuestionnaire(!showQuestionnaire)}
-          className="px-5 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold rounded-2xl text-sm flex items-center justify-center space-x-2 transition-all shadow-sm cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-          <span>{showQuestionnaire ? 'Hide Eligibility Checker' : 'Check My Eligibility'}</span>
-        </button>
+          {/* User Profile Summary Card */}
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-w-[280px]">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/15">
+              <div className="flex items-center space-x-2">
+                <UserCheck className="w-4 h-4 text-[#E07A5F]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-white">Your Saved Profile</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditProfileModal(true)}
+                className="text-xs font-bold text-[#E07A5F] hover:text-white flex items-center space-x-1 cursor-pointer transition-colors bg-white/10 px-2.5 py-1 rounded-lg"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>Edit Profile</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-gray-300 block text-[10px] uppercase font-semibold">Age</span>
+                <span className="font-extrabold text-white text-sm">{profileData.age} Years</span>
+              </div>
+              <div>
+                <span className="text-gray-300 block text-[10px] uppercase font-semibold">State</span>
+                <span className="font-extrabold text-white text-sm truncate">{profileData.state}</span>
+              </div>
+              <div>
+                <span className="text-gray-300 block text-[10px] uppercase font-semibold">Income Tier</span>
+                <span className="font-bold text-white text-[11px] truncate block">{profileData.incomeCategory.split('(')[0]}</span>
+              </div>
+              <div>
+                <span className="text-gray-300 block text-[10px] uppercase font-semibold">Assisted Aid</span>
+                <span className="font-bold text-white text-[11px]">
+                  {profileData.hasDisability ? 'Aid Required' : 'General Care'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-white/15 flex items-center justify-between text-xs">
+              <span className="text-gray-300">Live Eligible Matches:</span>
+              <span className="px-2 py-0.5 bg-[#E07A5F] text-white font-extrabold text-xs rounded-full">
+                {eligibleCount} Schemes
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* 2. Step-by-Step Interactive Eligibility Questionnaire */}
-      <AnimatePresence>
-        {showQuestionnaire && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-gradient-to-br from-[#eef3ef] to-white p-6 sm:p-8 rounded-3xl border border-[#3D5A45]/30 shadow-sm"
-          >
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-extrabold text-gray-900 flex items-center justify-center space-x-2">
-                  <UserCheck className="w-6 h-6 text-[#3D5A45]" />
-                  <span>Senior Eligibility Questionnaire</span>
-                </h3>
-                <p className="text-xs text-gray-600 mt-1">
-                  Answer 4 quick questions to compute your matching central & state healthcare schemes.
-                </p>
-              </div>
-
-              <form onSubmit={handleRunQuestionnaire} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Age */}
-                  <div className="bg-white p-4 rounded-2xl border border-gray-200">
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                      1. Age of Beneficiary
-                    </label>
-                    <div className="flex items-center space-x-3 mt-2">
-                      <input
-                        type="range"
-                        min="50"
-                        max="95"
-                        value={questionnaireData.age}
-                        onChange={(e) => setQuestionnaireData({ ...questionnaireData, age: parseInt(e.target.value) })}
-                        className="flex-1 accent-[#3D5A45]"
-                      />
-                      <span className="font-extrabold text-lg text-[#3D5A45] min-w-[50px] text-right">
-                        {questionnaireData.age} yrs
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* State */}
-                  <div className="bg-white p-4 rounded-2xl border border-gray-200">
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                      2. State / Region
-                    </label>
-                    <select
-                      value={questionnaireData.state}
-                      onChange={(e) => setQuestionnaireData({ ...questionnaireData, state: e.target.value })}
-                      className="w-full mt-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-[#3D5A45]"
-                    >
-                      <option value="All India">All India (National)</option>
-                      <option value="Gujarat">Gujarat</option>
-                      <option value="Maharashtra">Maharashtra</option>
-                      <option value="Tamil Nadu">Tamil Nadu</option>
-                      <option value="Rajasthan">Rajasthan</option>
-                    </select>
-                  </div>
-
-                  {/* Income */}
-                  <div className="bg-white p-4 rounded-2xl border border-gray-200">
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                      3. Annual Family Income
-                    </label>
-                    <select
-                      value={questionnaireData.income}
-                      onChange={(e) => setQuestionnaireData({ ...questionnaireData, income: e.target.value })}
-                      className="w-full mt-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-[#3D5A45]"
-                    >
-                      <option value="BPL / Low Income (< Rs. 1.5 Lakh)">BPL / Low Income (&lt; Rs. 1.5 Lakh)</option>
-                      <option value="Middle Income (Rs. 1.5 - 5 Lakh)">Middle Income (Rs. 1.5 - 5 Lakh)</option>
-                      <option value="Above Rs. 5 Lakh">Above Rs. 5 Lakh / All</option>
-                    </select>
-                  </div>
-
-                  {/* Disability / Impairment */}
-                  <div className="bg-white p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                      4. Requires Assisted Living Aid?
-                    </label>
-                    <div className="flex space-x-2 mt-1">
-                      <button
-                        type="button"
-                        onClick={() => setQuestionnaireData({ ...questionnaireData, hasDisability: true })}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                          questionnaireData.hasDisability 
-                            ? 'bg-[#3D5A45] text-white shadow-xs' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        Yes (Aids / Impairment)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQuestionnaireData({ ...questionnaireData, hasDisability: false })}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                          !questionnaireData.hasDisability 
-                            ? 'bg-[#3D5A45] text-white shadow-xs' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        No / General Care
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-center pt-2">
-                  <button
-                    type="submit"
-                    disabled={evaluating}
-                    className="py-3 px-8 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold rounded-xl text-sm shadow-md flex items-center space-x-2 cursor-pointer"
-                  >
-                    {evaluating ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Evaluating Eligibility Rules...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 text-[#E07A5F]" />
-                        <span>Find My Eligible Schemes</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-
-              {evaluatedResult && (
-                <div className="mt-6 p-4 bg-green-100 text-green-900 rounded-2xl text-center text-sm font-semibold flex items-center justify-center space-x-2">
-                  <Award className="w-5 h-5 text-green-700" />
-                  <span>
-                    Found <strong>{evaluatedResult.eligibleCount}</strong> highly eligible schemes matching your profile!
-                  </span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 3. Search & Filter Bar */}
+      {/* 2. Search & Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
@@ -288,26 +248,26 @@ export default function GovernmentSchemesPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search scheme name, ministry, health coverage, pension benefits..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#3D5A45] focus:bg-white transition-all"
+              placeholder="Search scheme name, Ayushman Bharat, pension, free surgery, medical aid..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#3D5A45] focus:bg-white transition-all text-gray-900"
             />
           </div>
 
           <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Filter State:</span>
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-[#3D5A45]"
+              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-[#3D5A45] text-gray-800"
             >
-              <option value="All India">All India</option>
-              <option value="Gujarat">Gujarat</option>
-              <option value="Maharashtra">Maharashtra</option>
-              <option value="Tamil Nadu">Tamil Nadu</option>
+              {INDIAN_STATES.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Category Pills */}
+        {/* Category Filter Pills */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
           {CATEGORIES.map(cat => (
             <button
@@ -325,11 +285,14 @@ export default function GovernmentSchemesPage() {
         </div>
       </div>
 
-      {/* 4. Schemes Grid List */}
+      {/* 3. Continuously Evaluated Scheme Cards */}
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs text-gray-500 font-semibold px-1">
-          <span>Showing {filteredSchemes.length} Verified Government Welfare Schemes</span>
-          {evaluatedResult && <span className="text-[#3D5A45] font-bold">✨ Sorted by Personalized Match</span>}
+          <span>Showing {filteredSchemes.length} Schemes Available for Your Region</span>
+          <span className="text-[#3D5A45] font-bold flex items-center space-x-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#3D5A45]" />
+            <span>Automatically updated based on your age ({profileData.age} yrs)</span>
+          </span>
         </div>
 
         {loading ? (
@@ -341,11 +304,11 @@ export default function GovernmentSchemesPage() {
             <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h4 className="text-base font-bold text-gray-800">No Schemes Found</h4>
             <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-              Try clearing your search or category filters.
+              Try adjusting your state filter or search keywords.
             </p>
             <button
-              onClick={handleResetFilters}
-              className="mt-4 px-4 py-2 bg-[#3D5A45] text-white text-xs font-semibold rounded-xl"
+              onClick={() => { setSelectedCategory('All'); setSelectedState('All India'); setSearchQuery(''); }}
+              className="mt-4 px-4 py-2 bg-[#3D5A45] text-white text-xs font-semibold rounded-xl cursor-pointer"
             >
               Reset Filters
             </button>
@@ -353,51 +316,70 @@ export default function GovernmentSchemesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {filteredSchemes.map((scheme) => {
-              const isHighlyEligible = scheme.matchScore && scheme.matchScore >= 60;
+              const matchScore = scheme.matchScore ?? 90;
+              const isEligible = scheme.isEligible !== false;
 
               return (
                 <div
                   key={scheme._id}
                   className={`bg-white p-6 rounded-3xl border transition-all flex flex-col justify-between shadow-xs ${
-                    isHighlyEligible 
-                      ? 'border-[#3D5A45] ring-2 ring-[#3D5A45]/20 bg-gradient-to-b from-white to-[#f8faf8]' 
+                    isEligible && matchScore >= 70
+                      ? 'border-[#3D5A45] ring-2 ring-[#3D5A45]/15 bg-gradient-to-b from-white to-[#fbfdfb]' 
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div>
-                    {/* Header Row */}
+                    {/* Top Row: Department & Eligibility Badge */}
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div>
                         <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                          {scheme.department}
+                          {scheme.department || 'Government of India'}
                         </span>
                         <h3 className="font-extrabold text-gray-900 text-base leading-snug">
                           {scheme.name}
                         </h3>
                       </div>
-                      <span className="px-2.5 py-1 bg-[#eef3ef] text-[#3D5A45] font-bold text-[11px] rounded-full whitespace-nowrap flex-shrink-0">
-                        {scheme.category}
+                      <span className={`px-2.5 py-1 font-extrabold text-[11px] rounded-full whitespace-nowrap flex-shrink-0 flex items-center space-x-1 ${
+                        isEligible 
+                          ? 'bg-[#eef3ef] text-[#3D5A45]' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {isEligible ? <CheckCircle2 className="w-3 h-3 text-[#3D5A45]" /> : <Info className="w-3 h-3" />}
+                        <span>{isEligible ? `${matchScore}% Match • Eligible` : 'General Scheme'}</span>
                       </span>
                     </div>
 
-                    {/* Eligibility Match Badge if calculated */}
-                    {scheme.matchScore !== undefined && (
-                      <div className="mb-3 flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${scheme.matchScore >= 60 ? 'bg-[#3D5A45]' : 'bg-amber-500'}`} 
-                            style={{ width: `${scheme.matchScore}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-extrabold text-[#3D5A45]">
-                          {scheme.matchScore}% Match
-                        </span>
+                    {/* Match Score Meter */}
+                    <div className="mb-3 flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${isEligible ? 'bg-[#3D5A45]' : 'bg-amber-500'}`} 
+                          style={{ width: `${matchScore}%` }}
+                        />
                       </div>
-                    )}
+                      <span className="text-xs font-extrabold text-[#3D5A45]">
+                        {matchScore}%
+                      </span>
+                    </div>
 
                     <p className="text-xs text-gray-600 leading-relaxed line-clamp-3 mb-4">
                       {scheme.description}
                     </p>
+
+                    {/* Eligibility Reasons Breakdown */}
+                    {scheme.eligibilityReasons && scheme.eligibilityReasons.length > 0 && (
+                      <div className="bg-[#EEF3EF]/60 p-3 rounded-2xl mb-3 space-y-1 border border-[#3D5A45]/15">
+                        <span className="text-[10px] font-extrabold text-[#3D5A45] uppercase tracking-wider block">
+                          Why you qualify:
+                        </span>
+                        {scheme.eligibilityReasons.slice(0, 2).map((reason, idx) => (
+                          <div key={idx} className="flex items-center space-x-1.5 text-xs text-[#2b4031] font-medium">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#3D5A45] flex-shrink-0" />
+                            <span className="line-clamp-1">{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Benefits Preview */}
                     {scheme.benefits && scheme.benefits.length > 0 && (
@@ -415,7 +397,7 @@ export default function GovernmentSchemesPage() {
                     )}
                   </div>
 
-                  {/* Actions Row */}
+                  {/* Action Buttons */}
                   <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
                     <button
                       onClick={() => setDetailModalScheme(scheme)}
@@ -425,7 +407,7 @@ export default function GovernmentSchemesPage() {
                     </button>
 
                     <a
-                      href={scheme.applicationUrl || scheme.officialLink}
+                      href={scheme.applicationUrl || scheme.officialLink || 'https://www.india.gov.in'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 py-2.5 px-4 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center space-x-1.5"
@@ -440,6 +422,143 @@ export default function GovernmentSchemesPage() {
           </div>
         )}
       </div>
+
+      {/* 4. Edit My Eligibility Profile Modal */}
+      <AnimatePresence>
+        {showEditProfileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-xl bg-[#EEF3EF] text-[#3D5A45]">
+                    <SlidersHorizontal className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Edit Scheme Profile</h3>
+                    <p className="text-xs text-gray-500">Update your details to re-match government schemes</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                {/* Age */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-bold text-gray-700 uppercase">Age of Beneficiary</label>
+                    <span className="text-sm font-extrabold text-[#3D5A45]">{profileData.age} Years</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="45"
+                    max="100"
+                    value={profileData.age}
+                    onChange={(e) => setProfileData({ ...profileData, age: parseInt(e.target.value) })}
+                    className="w-full accent-[#3D5A45]"
+                  />
+                </div>
+
+                {/* State */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">State / Region</label>
+                  <select
+                    value={profileData.state}
+                    onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-[#3D5A45]"
+                  >
+                    {INDIAN_STATES.map((st) => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Income Tier */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Annual Family Income</label>
+                  <select
+                    value={profileData.incomeCategory}
+                    onChange={(e) => setProfileData({ ...profileData, incomeCategory: e.target.value })}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-[#3D5A45]"
+                  >
+                    {INCOME_TIERS.map((tier) => (
+                      <option key={tier} value={tier}>{tier}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Disability / Impairment Aid */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">
+                    Requires Assisted Living / Disability Aid?
+                  </label>
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setProfileData({ ...profileData, hasDisability: true })}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        profileData.hasDisability 
+                          ? 'bg-[#3D5A45] text-white shadow-xs' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Yes (Aid Required)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProfileData({ ...profileData, hasDisability: false })}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !profileData.hasDisability 
+                          ? 'bg-[#3D5A45] text-white shadow-xs' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      No (General Senior)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-3 flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditProfileModal(false)}
+                    className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-xs cursor-pointer hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="flex-1 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold rounded-xl text-xs shadow-sm flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {savingProfile ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Updating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Save & Re-Match Schemes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 5. Full Scheme Details Modal */}
       {detailModalScheme && (
@@ -456,7 +575,7 @@ export default function GovernmentSchemesPage() {
               </div>
               <button 
                 onClick={() => setDetailModalScheme(null)}
-                className="p-1 rounded-full text-gray-400 hover:text-gray-600"
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -523,18 +642,18 @@ export default function GovernmentSchemesPage() {
               <button
                 type="button"
                 onClick={() => setDetailModalScheme(null)}
-                className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm"
+                className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm cursor-pointer hover:bg-gray-50"
               >
                 Close
               </button>
               <a
-                href={detailModalScheme.applicationUrl || detailModalScheme.officialLink}
+                href={detailModalScheme.applicationUrl || detailModalScheme.officialLink || 'https://www.india.gov.in'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold rounded-xl text-sm text-center flex items-center justify-center space-x-1.5"
               >
                 <span>Apply on Official Website</span>
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>

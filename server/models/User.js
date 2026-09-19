@@ -74,6 +74,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Government Scheme & Healthcare Demographic Criteria
+  age: {
+    type: Number,
+    default: 60
+  },
+  state: {
+    type: String,
+    default: 'All India'
+  },
+  incomeCategory: {
+    type: String,
+    default: 'Low Income (< Rs. 2.5 Lakh/yr)'
+  },
+  hasDisability: {
+    type: Boolean,
+    default: false
+  },
+  gender: {
+    type: String,
+    default: 'All'
+  },
   emergencyContacts: [emergencyContactSchema],
   linkedUsers: [linkedUserSchema]
 }, {

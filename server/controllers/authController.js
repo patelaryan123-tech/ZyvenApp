@@ -23,7 +23,7 @@ const generateToken = (user) => {
 // 1. REGISTER WITH EMAIL & SEND 6-DIGIT OTP
 const registerWithEmailOtp = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, age, state, incomeCategory, hasDisability, gender } = req.body;
 
     if (!name || !email || !password) {
       return errorResponse(res, 'Please provide name, email and password', 400);
@@ -53,6 +53,11 @@ const registerWithEmailOtp = async (req, res) => {
       existingUser.name = name.trim();
       existingUser.password = hashedPassword;
       existingUser.role = role || 'Senior';
+      if (age) existingUser.age = Number(age);
+      if (state) existingUser.state = state;
+      if (incomeCategory) existingUser.incomeCategory = incomeCategory;
+      if (hasDisability !== undefined) existingUser.hasDisability = Boolean(hasDisability);
+      if (gender) existingUser.gender = gender;
       existingUser.otp = { code: otpCode, expiresAt: otpExpiresAt };
       existingUser.isVerified = false;
       await existingUser.save();
@@ -63,6 +68,11 @@ const registerWithEmailOtp = async (req, res) => {
         email: cleanEmail,
         password: hashedPassword,
         role: role || 'Senior',
+        age: age ? Number(age) : 60,
+        state: state || 'All India',
+        incomeCategory: incomeCategory || 'Low Income (< Rs. 2.5 Lakh/yr)',
+        hasDisability: Boolean(hasDisability),
+        gender: gender || 'All',
         otp: { code: otpCode, expiresAt: otpExpiresAt },
         isVerified: false
       });
