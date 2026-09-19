@@ -5,6 +5,8 @@ const {
   verifyEmailOtp, 
   resendEmailOtp, 
   loginWithEmail, 
+  forgotPassword,
+  resetPasswordWithOtp,
   syncUser, 
   getMe, 
   getProfile, 
@@ -13,11 +15,13 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
-// Public 6-Digit Email OTP routes
+// Public 6-Digit Email OTP & Password routes
 router.post('/register-otp', registerWithEmailOtp);
 router.post('/verify-otp', verifyEmailOtp);
 router.post('/resend-otp', resendEmailOtp);
 router.post('/login-email', loginWithEmail);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPasswordWithOtp);
 
 // User Profile & Sync routes
 router.post('/sync', protect, syncUser);

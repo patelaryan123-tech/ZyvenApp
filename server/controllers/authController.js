@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sendEmailOtp, sendWelcomeEmail } = require('../services/emailService');
+const { sendEmailOtp, sendPasswordResetOtp, sendWelcomeEmail } = require('../services/emailService');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'zyven_production_secret_key_2026';
@@ -245,6 +245,99 @@ const loginWithEmail = async (req, res) => {
   }
 };
 
+// 4B. FORGOT PASSWORD (NODEMAILER 6-DIGIT OTP)
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return errorResponse(res, 'Please enter your registered email address.', 400);
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return errorResponse(res, 'No registered account found with this email address.', 404);
+    }
+
+    // Generate random 6-digit numeric OTP
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.otp = { code: resetCode, expiresAt: resetExpiresAt };
+    await user.save();
+
+    // Send Password Reset OTP email via Nodemailer
+    await sendPasswordResetOtp(cleanEmail, resetCode, user.name || 'User');
+
+    return successResponse(res, 'A 6-digit password reset code has been sent to your email.', {
+      email: cleanEmail
+    });
+  } catch (error) {
+    console.error('forgotPassword error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+// 4C. RESET PASSWORD WITH 6-DIGIT OTP
+const resetPasswordWithOtp = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return errorResponse(res, 'Email, 6-digit code, and new password are required.', 400);
+    }
+
+    if (newPassword.length < 6) {
+      return errorResponse(res, 'New password must be at least 6 characters long.', 400);
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = otp.toString().trim();
+
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
+
+    if (!user) {
+      return errorResponse(res, 'User account not found.', 404);
+    }
+
+    if (!user.otp || !user.otp.code) {
+      return errorResponse(res, 'No pending password reset request found. Please request a new code.', 400);
+    }
+
+    if (new Date() > new Date(user.otp.expiresAt)) {
+      return errorResponse(res, 'Reset code has expired. Please request a new code.', 400);
+    }
+
+    if (user.otp.code !== cleanOtp) {
+      return errorResponse(res, 'Invalid 6-digit reset code. Please check and try again.', 400);
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.isVerified = true;
+    user.otp = undefined;
+    await user.save();
+
+    const token = generateToken(user);
+
+    return successResponse(res, 'Password reset successful! You are now logged in.', {
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: true
+      }
+    });
+  } catch (error) {
+    console.error('resetPasswordWithOtp error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
 // 5. FIREBASE / GENERAL SYNC USER
 const syncUser = async (req, res) => {
   try {
@@ -346,6 +439,8 @@ module.exports = {
   verifyEmailOtp,
   resendEmailOtp,
   loginWithEmail,
+  forgotPassword,
+  resetPasswordWithOtp,
   syncUser,
   getMe,
   getProfile,

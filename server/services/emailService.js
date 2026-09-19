@@ -201,6 +201,45 @@ const sendEmailOtp = async (email, otp, name = 'User') => {
   return await sendMail({ to: email, subject, html, text: plainText });
 };
 
+// 4B. Send 6-Digit Password Reset OTP (Nodemailer)
+const sendPasswordResetOtp = async (email, otp, name = 'User') => {
+  console.log(`\n==================================================`);
+  console.log(`🔑 [ZYVEN PASSWORD RESET OTP]`);
+  console.log(`📩 Recipient: ${email} (${name})`);
+  console.log(`🔢 6-Digit Reset Code: ${otp}`);
+  console.log(`⏰ Valid for 10 minutes`);
+  console.log(`==================================================\n`);
+
+  const subject = `Your ZYVEN Password Reset Code: ${otp}`;
+  const preheader = `Use code ${otp} to reset your ZYVEN healthcare account password.`;
+
+  const contentHtml = `
+    <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 800; color: #1F2937;">Reset Your Password</h2>
+    <p style="margin: 0 0 20px 0; color: #4B5563; font-size: 15px; line-height: 1.5;">
+      Hello <strong>${name}</strong>,<br/>
+      We received a request to reset your ZYVEN Healthcare account password. Use the 6-digit code below to set a new password:
+    </p>
+
+    <div style="text-align: center; margin: 28px 0; padding: 24px; background-color: #FDFBF7; border: 2px dashed #E07A5F; border-radius: 16px;">
+      <span style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #E07A5F; display: inline-block;">
+        ${otp}
+      </span>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #6B7280; font-weight: 600;">
+        ⏱️ This reset code will expire in 10 minutes.
+      </p>
+    </div>
+
+    <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 13px;">
+      If you did not request a password reset, please secure your account immediately or ignore this email.
+    </p>
+  `;
+
+  const plainText = `Hello ${name},\n\nYour ZYVEN password reset code is: ${otp}\n\nThis code is valid for 10 minutes.\n\nBest regards,\nZYVEN Healthcare Team`;
+
+  const html = generateEmailLayout({ title: subject, preheader, contentHtml });
+  return await sendMail({ to: email, subject, html, text: plainText });
+};
+
 // 5. Verification Link Email (Fallback)
 const sendVerificationEmail = async ({ to, name = 'User', verificationLink }) => {
   const subject = 'Verify your ZYVEN account';
@@ -364,6 +403,7 @@ const sendTestEmail = async (to) => {
 module.exports = {
   sendMail,
   sendEmailOtp,
+  sendPasswordResetOtp,
   sendVerificationEmail,
   sendWelcomeEmail,
   sendMedicationReminder,
