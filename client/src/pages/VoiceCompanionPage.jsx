@@ -37,7 +37,9 @@ const VoiceCompanionPage = () => {
   const loadConversations = async () => {
     try {
       const res = await aiService.getConversations();
-      if (res.data) setConversations(res.data);
+      // Backend: { success, data: [...conversations] }
+      const convs = res?.data || [];
+      setConversations(Array.isArray(convs) ? convs : []);
     } catch (err) {
       console.error('Failed to load conversations', err);
     }
@@ -56,15 +58,17 @@ const VoiceCompanionPage = () => {
 
     try {
       const res = await aiService.chat(text, currentConvId);
-      if (res.data) {
-        setMessages([...newMessages, { role: 'ai', content: res.data.message }]);
-        if (res.data.conversationId && !currentConvId) {
-          setCurrentConvId(res.data.conversationId);
-          loadConversations();
-        }
-        if (!isMuted && ttsSupported) {
-          speak(res.data.message, language);
-        }
+      // Backend returns: { success, data: { conversationId, response } }
+      const aiData = res?.data || res;
+      const aiReply = aiData?.response || aiData?.message || 'Sorry, I could not generate a response.';
+      const convId = aiData?.conversationId;
+      setMessages([...newMessages, { role: 'ai', content: aiReply }]);
+      if (convId && !currentConvId) {
+        setCurrentConvId(convId);
+        loadConversations();
+      }
+      if (!isMuted && ttsSupported) {
+        speak(aiReply, language);
       }
     } catch (err) {
       setMessages([...newMessages, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);

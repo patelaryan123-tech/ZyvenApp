@@ -198,23 +198,29 @@ const MedicalReportPage = () => {
     setError('');
     const formData = new FormData();
     formData.append('report', selectedFile);
+    // Always include reportType (required by backend validator)
+    const reportType = selectedFile.type === 'application/pdf' ? 'Lab Report' : 'Medical Image';
+    formData.append('reportType', reportType);
 
     try {
       const res = await reportService.uploadReport(formData);
-      
-      if (res.data) {
-        setReports([res.data, ...reports]);
-        setActiveReport(res.data);
+      // Backend returns 202 (accepted) - report processes async with Ollama
+      const reportData = res?.data || res;
+      if (reportData) {
+        setReports(prev => [reportData, ...prev]);
+        setActiveReport(reportData);
       }
       setSelectedFile(null);
       setPreview(null);
       setCapturedImage(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to analyze report. Please try again.');
+      const msg = err.response?.data?.message || err.message || 'Failed to upload report.';
+      setError(msg);
     } finally {
       setIsUploading(false);
     }
   };
+
 
   const selectReport = async (report) => {
     try {
