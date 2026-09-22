@@ -18,7 +18,7 @@ ZYVEN is a production-ready, full-stack AI healthcare platform designed specific
 - **Emergency SOS:** Real-time, location-aware emergency alerts for caregivers and family.
 - **Caregiver Dashboard:** Centralized view for family members to monitor and manage health data.
 
-**Core Technologies:** React + Vite, Node.js + Express, MongoDB, Firebase Auth, Google Gemini AI, Socket.IO.
+**Core Technologies:** React + Vite, Node.js + Express, MongoDB, Firebase Auth, Ollama AI (Llama 3), Socket.IO.
 
 ## 2. Features
 
@@ -47,7 +47,7 @@ ZYVEN is a production-ready, full-stack AI healthcare platform designed specific
 - Node.js, Express.js
 - MongoDB + Mongoose
 - Firebase Admin SDK
-- Google Gemini AI
+- Ollama AI (Llama 3 Model)
 - Nodemailer, Socket.IO
 - Multer, pdf-parse
 
@@ -132,6 +132,8 @@ FIREBASE_PROJECT_ID=your-project-id    # Firebase Project ID
 FIREBASE_CLIENT_EMAIL=your-email       # Firebase Admin Client Email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n" # Firebase Admin Private Key
 GEMINI_API_KEY=your-gemini-key         # Google Gemini AI API Key
+OLLAMA_BASE_URL=http://localhost:11434 # Ollama Local Service Endpoint
+OLLAMA_MODEL=llama3                    # Ollama model name
 EMAIL_HOST=smtp.example.com            # SMTP Server Host
 EMAIL_PORT=587                         # SMTP Server Port
 EMAIL_USER=your-email@example.com      # SMTP User
@@ -163,12 +165,13 @@ VITE_FIREBASE_APP_ID=app-id            # Firebase App ID
 
 You can use a local MongoDB instance (`mongodb://localhost:27017/zyven`) or set up a free cluster on [MongoDB Atlas](https://www.mongodb.com/atlas/database). Update the `MONGODB_URI` in `server/.env`.
 
-## 10. Google Gemini API Setup
+## 10. Ollama Llama 3 AI Setup
 
-To enable AI Chat and Medical Report Analysis:
-1. Visit [Google AI Studio](https://aistudio.google.com/).
-2. Create an API key.
-3. Add it to `server/.env` as `GEMINI_API_KEY`.
+To enable AI Companion, Triage, and Medical Report Analysis locally using Ollama:
+1. Install [Ollama](https://ollama.com/).
+2. Run `ollama pull llama3` in your terminal.
+3. Ensure Ollama service is running (`http://localhost:11434`).
+4. Set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in `server/.env`.
 
 ## 11. Email Setup
 
