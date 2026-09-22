@@ -63,6 +63,17 @@ const DashboardPage = () => {
     { title: 'Gov Schemes', icon: <Building className="w-6 h-6" />, color: 'bg-white text-[#3D5A45] border border-[#3D5A45]/20', path: '/schemes', span: 'col-span-1' },
   ];
 
+  const adherenceData = [
+    { name: 'Mon', score: 80 },
+    { name: 'Tue', score: 95 },
+    { name: 'Wed', score: 70 },
+    { name: 'Thu', score: 100 },
+    { name: 'Fri', score: 85 },
+    { name: 'Sat', score: 90 },
+    { name: 'Sun', score: 75 },
+  ];
+
+
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full relative pb-24 md:pb-8">
