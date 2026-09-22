@@ -10,6 +10,8 @@ import { useSeniorMode } from '../context/SeniorModeContext';
 import { medicationService } from '../services/medicationService';
 import { notificationService } from '../services/notificationService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+
 
 const DashboardPage = () => {
   const { user } = useAuth();
