@@ -6,7 +6,10 @@ import {
   Building2, 
   ShieldCheck, 
   PhoneCall, 
-  Users 
+  Users,
+  Activity,
+  Stethoscope,
+  Sparkles
 } from 'lucide-react';
 
 export const ROLES = {
@@ -25,6 +28,9 @@ export const LANGUAGES = [
 
 export const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
+  { path: '/vitals', label: 'Vitals Tracker', icon: Activity, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
+  { path: '/symptom-checker', label: 'AI Symptom Checker', icon: Stethoscope, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
+  { path: '/active-aging', label: 'Active Aging', icon: Sparkles, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/voice', label: 'Voice Companion', icon: Mic, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/reports', label: 'Medical Reports', icon: FileText, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/medications', label: 'Medications', icon: Pill, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
@@ -33,6 +39,7 @@ export const NAV_ITEMS = [
   { path: '/emergency', label: 'Emergency', icon: PhoneCall, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/caregiver', label: 'Caregiver Dashboard', icon: Users, roles: [ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] }
 ];
+
 
 export const API_ENDPOINTS = {
   AUTH: '/auth',

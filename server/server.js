@@ -42,6 +42,11 @@ app.use('/api/schemes', require('./routes/schemes'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/vitals', require('./routes/vitals'));
+app.use('/api/triage', require('./routes/triage'));
+app.use('/api/care-logs', require('./routes/careLogs'));
+app.use('/api/appointments', require('./routes/appointments'));
+
 
 // Basic route
 app.get('/', (req, res) => {

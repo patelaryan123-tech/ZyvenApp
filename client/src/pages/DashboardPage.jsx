@@ -3,27 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Mic, FileText, Pill, MapPin, Building, AlertTriangle, 
-  Activity, Bell, Calendar
+  Activity, Bell, Calendar, Stethoscope, Heart, Sparkles, Eye, Volume2
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import useAuth from '../hooks/useAuth';
+import { useSeniorMode } from '../context/SeniorModeContext';
 import { medicationService } from '../services/medicationService';
 import { notificationService } from '../services/notificationService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 
-const adherenceData = [
-  { name: 'Mon', score: 85 },
-  { name: 'Tue', score: 90 },
-  { name: 'Wed', score: 78 },
-  { name: 'Thu', score: 95 },
-  { name: 'Fri', score: 100 },
-  { name: 'Sat', score: 88 },
-  { name: 'Sun', score: 92 },
-];
-
 const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isSeniorMode, toggleSeniorMode } = useSeniorMode();
   const [isLoading, setIsLoading] = useState(true);
   const [medications, setMedications] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -55,38 +46,51 @@ const DashboardPage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <LoadingSkeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-4">
-            <LoadingSkeleton className="h-64 rounded-xl" />
-          </div>
-          <div className="space-y-4">
-            <LoadingSkeleton className="h-64 rounded-xl" />
-          </div>
-        </div>
       </div>
     );
   }
 
   const features = [
-    { title: 'Voice Companion', icon: <Mic className="w-8 h-8" />, color: 'bg-[#3D5A45] text-white', path: '/voice', span: 'col-span-2 md:col-span-1 row-span-2 md:row-span-1' },
+    { title: 'Voice Companion', icon: <Mic className="w-8 h-8" />, color: 'bg-[#3D5A45] text-white', path: '/voice', span: 'col-span-2 md:col-span-1' },
+    { title: 'Vitals Tracker', icon: <Activity className="w-6 h-6 text-[#3D5A45]" />, color: 'bg-green-50 text-[#3D5A45] border border-green-200', path: '/vitals', span: 'col-span-1' },
+    { title: 'AI Symptom Checker', icon: <Stethoscope className="w-6 h-6 text-[#E07A5F]" />, color: 'bg-orange-50 text-[#E07A5F] border border-orange-200', path: '/symptom-checker', span: 'col-span-1' },
+    { title: 'Active Senior Aging', icon: <Sparkles className="w-6 h-6 text-purple-600" />, color: 'bg-purple-50 text-purple-700 border border-purple-200', path: '/active-aging', span: 'col-span-1' },
     { title: 'Medical Reports', icon: <FileText className="w-6 h-6" />, color: 'bg-white text-[#3D5A45] border border-[#3D5A45]/20', path: '/reports', span: 'col-span-1' },
     { title: 'Medications', icon: <Pill className="w-6 h-6" />, color: 'bg-white text-[#3D5A45] border border-[#3D5A45]/20', path: '/medications', span: 'col-span-1' },
     { title: 'Hospital Finder', icon: <MapPin className="w-6 h-6" />, color: 'bg-white text-[#3D5A45] border border-[#3D5A45]/20', path: '/hospitals', span: 'col-span-1' },
     { title: 'Gov Schemes', icon: <Building className="w-6 h-6" />, color: 'bg-white text-[#3D5A45] border border-[#3D5A45]/20', path: '/schemes', span: 'col-span-1' },
   ];
 
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full relative pb-24 md:pb-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-gray-100 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Good Morning, {user?.name?.split(' ')[0] || 'User'}</h1>
-          <p className="text-gray-600">Welcome back to your health dashboard</p>
+          <h1 className="text-2xl font-black text-gray-900">Good Morning, {user?.name?.split(' ')[0] || 'User'}</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Welcome back to your ZYVEN healthcare portal</p>
         </div>
-        <div className="w-12 h-12 bg-[#3D5A45]/10 rounded-full flex items-center justify-center text-[#3D5A45] font-bold text-xl">
-          {user?.name?.charAt(0) || 'U'}
+        
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={toggleSeniorMode}
+            className={`py-2 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer border ${
+              isSeniorMode 
+                ? 'bg-[#3D5A45] text-white border-[#3D5A45]' 
+                : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+            }`}
+            title="Toggle Ultra Senior Accessibility Mode"
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">{isSeniorMode ? 'Senior Mode Active' : 'Senior Mode'}</span>
+          </button>
+
+          <div className="w-10 h-10 bg-[#3D5A45]/10 rounded-full flex items-center justify-center text-[#3D5A45] font-black text-lg">
+            {user?.name?.charAt(0) || 'U'}
+          </div>
         </div>
       </div>
+
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

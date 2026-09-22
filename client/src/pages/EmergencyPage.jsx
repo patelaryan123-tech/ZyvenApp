@@ -433,22 +433,33 @@ export default function EmergencyPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1.5">
                       <a
                         href={`tel:${c.phone}`}
                         className="p-2 bg-[#eef3ef] text-[#3D5A45] hover:bg-[#d8e6dc] rounded-xl text-xs font-bold"
+                        title="Call Phone"
                       >
                         <Phone className="w-3.5 h-3.5" />
+                      </a>
+                      <a
+                        href={`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`🚨 EMERGENCY SOS ALERT from ${user?.name || 'Senior'}!\n\nI need immediate assistance.\nLive Location: ${geoLoc?.latitude ? `https://maps.google.com/?q=${geoLoc.latitude},${geoLoc.longitude}` : 'Location Captured'}\n\nSent via ZYVEN Healthcare Platform.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-xl text-xs font-bold flex items-center space-x-1"
+                        title="WhatsApp SOS Message"
+                      >
+                        <span className="text-xs">💬 WA</span>
                       </a>
                       {c._id && (
                         <button
                           onClick={() => handleDeleteContact(c._id)}
-                          className="p-2 text-gray-400 hover:text-red-600 rounded-xl"
+                          className="p-2 text-gray-400 hover:text-red-600 rounded-xl cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
+
                   </div>
                 ))}
               </div>

@@ -81,8 +81,60 @@ const getSchemeRecommendations = async (userProfile) => {
   }
 };
 
+const analyzeSymptoms = async (symptoms, age, gender, duration, severity, existingConditions = []) => {
+  try {
+    const model = getModel();
+    const prompt = `Perform a senior healthcare triage evaluation for the following reported symptoms:
+    Symptoms: ${Array.isArray(symptoms) ? symptoms.join(', ') : symptoms}
+    Patient Age: ${age || 65}
+    Gender: ${gender || 'Unspecified'}
+    Duration: ${duration || 'Recent'}
+    Severity (1-10): ${severity || 5}
+    Existing Medical Conditions: ${existingConditions.join(', ') || 'None reported'}
+
+    Return ONLY a valid JSON object matching this exact structure without markdown backticks:
+    {
+      "urgencyLevel": "Low" | "Moderate" | "Urgent",
+      "summary": "Clear, reassuring explanation of the symptoms for a senior or caregiver",
+      "possibleCauses": ["Cause 1", "Cause 2"],
+      "redFlags": ["Warning sign 1 to watch for"],
+      "recommendedActions": ["Action 1 (e.g. Drink fluids, Rest)", "Action 2 (e.g. Schedule Clinic Visit)"],
+      "emergencyNotice": "Include a bold emergency message if urgency level is Urgent, else null"
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    try {
+      const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+      return parsed;
+    } catch (e) {
+      console.warn("AI Triage JSON parse error, returning fallback format:", text);
+      return {
+        urgencyLevel: severity > 7 ? "Urgent" : (severity > 4 ? "Moderate" : "Low"),
+        summary: "Based on the reported symptoms, please monitor your condition carefully.",
+        possibleCauses: ["General fatigue or age-related strain", "Mild symptom presentation"],
+        redFlags: ["Chest pain or shortness of breath", "Sudden weakness or difficulty speaking"],
+        recommendedActions: ["Rest and stay hydrated", "Consult your physician if symptoms persist"],
+        emergencyNotice: severity > 7 ? "If experiencing acute distress, press the SOS button immediately." : null
+      };
+    }
+  } catch (error) {
+    console.error('Error in analyzeSymptoms:', error);
+    return {
+      urgencyLevel: severity > 7 ? "Urgent" : "Moderate",
+      summary: "We received your symptom details. Please consult with a medical professional for an accurate assessment.",
+      possibleCauses: ["Requires clinical evaluation"],
+      redFlags: ["Shortness of breath, chest pressure, severe dizziness"],
+      recommendedActions: ["Contact your doctor or visit a nearby clinic"],
+      emergencyNotice: "Disclaimer: This is AI-generated advice and not a medical diagnosis."
+    };
+  }
+};
+
 module.exports = {
   chatWithAI,
   analyzeReport,
-  getSchemeRecommendations
+  getSchemeRecommendations,
+  analyzeSymptoms
 };
+

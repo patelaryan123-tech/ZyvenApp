@@ -21,6 +21,9 @@ const HospitalFinderPage = lazy(() => import('../pages/HospitalFinderPage'));
 const GovernmentSchemesPage = lazy(() => import('../pages/GovernmentSchemesPage'));
 const EmergencyPage = lazy(() => import('../pages/EmergencyPage'));
 const CaregiverDashboardPage = lazy(() => import('../pages/CaregiverDashboardPage'));
+const VitalsPage = lazy(() => import('../pages/VitalsPage'));
+const SymptomCheckerPage = lazy(() => import('../pages/SymptomCheckerPage'));
+const ActiveAgingPage = lazy(() => import('../pages/ActiveAgingPage'));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -47,6 +50,24 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           
+          <Route path="/vitals" element={
+            <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
+              <VitalsPage />
+            </RoleRoute>
+          } />
+
+          <Route path="/symptom-checker" element={
+            <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
+              <SymptomCheckerPage />
+            </RoleRoute>
+          } />
+
+          <Route path="/active-aging" element={
+            <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
+              <ActiveAgingPage />
+            </RoleRoute>
+          } />
+
           <Route path="/voice" element={
             <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
               <VoiceCompanionPage />
@@ -89,6 +110,7 @@ const AppRoutes = () => {
             </RoleRoute>
           } />
         </Route>
+
 
         {/* Default redirects */}
         <Route path="/" element={<Navigate to="/welcome" replace />} />

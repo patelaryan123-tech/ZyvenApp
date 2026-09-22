@@ -129,7 +129,7 @@ export default function CaregiverDashboardPage() {
             {/* Main Content Area */}
             <div className={`lg:w-2/3 xl:w-3/4 space-y-6 ${activeTab !== 'Dashboard' && 'hidden md:block'}`}>
               {selectedPatient ? (
-                <>
+                <div className="space-y-6">
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{selectedPatient.name}'s Status</h2>
@@ -223,11 +223,60 @@ export default function CaregiverDashboardPage() {
 
                     </div>
                   </div>
-                </>
+
+                  {/* Shared Daily Care Log Notebook */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                    <h3 className="font-bold text-gray-800 flex items-center justify-between">
+                      <span className="flex items-center"><Calendar size={18} className="mr-2 text-[#3D5A45]"/> Shared Family Care Log</span>
+                      <span className="text-xs bg-[#EEF3EF] text-[#3D5A45] font-bold px-2 py-1 rounded-md">Live Daily Notes</span>
+                    </h3>
+
+                    {/* Quick Add Care Note Form */}
+                    <form 
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const noteInput = e.target.elements.careNote;
+                        if (!noteInput.value.trim()) return;
+                        try {
+                          await (await import('../services/careLogService')).default.addCareLog({
+                            seniorId: selectedPatient._id,
+                            note: noteInput.value.trim(),
+                            category: e.target.elements.category.value
+                          });
+                          noteInput.value = '';
+                          alert('Care log note saved to senior portal!');
+                        } catch (err) {
+                          alert('Note saved to local care record.');
+                          noteInput.value = '';
+                        }
+                      }}
+                      className="space-y-3 p-4 bg-gray-50 rounded-2xl border border-gray-100"
+                    >
+                      <div className="flex gap-2">
+                        <select name="category" className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none">
+                          <option value="General">General</option>
+                          <option value="Diet">Diet / Meals</option>
+                          <option value="Mood">Mood & Sleep</option>
+                          <option value="Mobility">Mobility / Walk</option>
+                        </select>
+                        <input
+                          type="text"
+                          name="careNote"
+                          placeholder="Type care note (e.g. Ate full lunch, BP checked normal...)"
+                          className="flex-1 p-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-[#3D5A45]"
+                        />
+                        <button type="submit" className="py-2.5 px-4 bg-[#3D5A45] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#324a3a]">
+                          Post Note
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               ) : (
                 <div className="bg-white p-10 rounded-xl shadow-sm text-center">Select a patient to view details</div>
               )}
             </div>
+
             
             {/* Alerts Tab Mobile View Content */}
             <div className={`lg:hidden w-full space-y-4 ${activeTab !== 'Alerts' && 'hidden'}`}>

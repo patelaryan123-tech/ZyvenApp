@@ -27,3 +27,20 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #8ba791; 
 }
+
+/* Senior Mode Accessibility Styles */
+html.senior-mode-active {
+  font-size: 115%;
+}
+
+html.senior-mode-active button,
+html.senior-mode-active input,
+html.senior-mode-active select {
+  min-height: 48px;
+}
+
+html.senior-mode-active .bg-white {
+  border-width: 2px !important;
+  border-color: #3D5A45 !important;
+}
+
