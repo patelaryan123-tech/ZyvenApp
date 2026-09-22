@@ -55,6 +55,8 @@ export const AuthProvider = ({ children }) => {
 
   // Initial Auth Check & Session Hydration
   useEffect(() => {
+    let unsubscribe = () => {};
+
     const initAuth = async () => {
       const localToken = localStorage.getItem('zyven_token');
       if (localToken) {
@@ -63,16 +65,20 @@ export const AuthProvider = ({ children }) => {
           if (res.data?.data) {
             setUser(res.data.data);
             setLoading(false);
-            return;
+            return; // Authenticated via local JWT — no need for Firebase listener
           }
         } catch (err) {
-          console.warn('JWT token session expired, clearing storage.');
+          console.warn('JWT token invalid or server offline, clearing token.');
           localStorage.removeItem('zyven_token');
         }
       }
 
+      // Safety timeout: if Firebase takes too long or is unconfigured, stop spinner
+      const safetyTimer = setTimeout(() => setLoading(false), 4000);
+
       // Firebase listener for Google Sign-In sessions
-      const unsubscribe = onAuthStateChanged(auth, async (currentFirebaseUser) => {
+      unsubscribe = onAuthStateChanged(auth, async (currentFirebaseUser) => {
+        clearTimeout(safetyTimer);
         setFirebaseUser(currentFirebaseUser);
         if (currentFirebaseUser) {
           await syncWithBackend(currentFirebaseUser);
@@ -81,12 +87,13 @@ export const AuthProvider = ({ children }) => {
         }
         setLoading(false);
       });
-
-      return unsubscribe;
     };
 
     initAuth();
+
+    return () => unsubscribe();
   }, []);
+
 
   // 1. REGISTER WITH EMAIL & 6-DIGIT OTP (NODEMAILER)
   const registerWithEmailOtp = async (name, email, password, role) => {

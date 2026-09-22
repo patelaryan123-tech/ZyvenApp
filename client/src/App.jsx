@@ -6,24 +6,26 @@ import { SocketProvider } from './context/SocketContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { SeniorModeProvider } from './context/SeniorModeContext';
 import AppRoutes from './routes/AppRoutes';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function App() {
   return (
-    <BrowserRouter>
-      <LanguageProvider>
-        <SeniorModeProvider>
-          <AuthProvider>
-            <SocketProvider>
-              <NotificationProvider>
-                <AppRoutes />
-              </NotificationProvider>
-            </SocketProvider>
-          </AuthProvider>
-        </SeniorModeProvider>
-      </LanguageProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <LanguageProvider>
+          <SeniorModeProvider>
+            <AuthProvider>
+              <SocketProvider>
+                <NotificationProvider>
+                  <AppRoutes />
+                </NotificationProvider>
+              </SocketProvider>
+            </AuthProvider>
+          </SeniorModeProvider>
+        </LanguageProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
 export default App;
-
