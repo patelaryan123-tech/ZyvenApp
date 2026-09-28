@@ -23,6 +23,17 @@ router.post('/login-email', loginWithEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPasswordWithOtp);
 
+// Email diagnostic test (remove after confirming emails work)
+router.post('/test-email', async (req, res) => {
+  try {
+    const { sendTestEmail } = require('../services/emailService');
+    const result = await sendTestEmail(req.body.email || 'patelaryan4908@gmail.com');
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // User Profile & Sync routes
 router.post('/sync', protect, syncUser);
 router.post('/profile', protect, syncUser);
