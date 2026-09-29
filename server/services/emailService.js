@@ -4,9 +4,12 @@ const { Resend } = require('resend');
 // Configuration
 const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? 'resend' : 'smtp');
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'ZYVEN Healthcare';
-const EMAIL_FROM_ADDRESS = process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@zyven.com';
+// On Resend free tier without a verified domain, must use onboarding@resend.dev as sender
+const EMAIL_FROM_ADDRESS = process.env.RESEND_API_KEY
+  ? (process.env.EMAIL_FROM_RESEND || 'onboarding@resend.dev')
+  : (process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@zyven.com');
 const FROM_HEADER = `"${EMAIL_FROM_NAME}" <${EMAIL_FROM_ADDRESS}>`;
-const REPLY_TO = process.env.EMAIL_REPLY_TO || `support@${EMAIL_FROM_ADDRESS.split('@')[1] || 'zyven.com'}`;
+const REPLY_TO = process.env.EMAIL_REPLY_TO || (process.env.SMTP_USER || 'patelaryan4908@gmail.com');
 
 // 1. Initialize Providers
 let resendClient = null;
