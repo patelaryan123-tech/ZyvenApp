@@ -20,10 +20,15 @@ if (process.env.RESEND_API_KEY) {
 }
 
 // Gmail / Standard SMTP Support
-const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-const smtpPass = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
-const smtpHost = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
-const smtpPort = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587', 10);
+const smtpUser = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+const smtpPass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').trim();
+
+// Auto-detect Brevo from username to avoid bad hostname env var issues
+const isBrevo = smtpUser.includes('smtp-brevo.com') || smtpUser.includes('brevo');
+const smtpHost = isBrevo
+  ? 'smtp-relay.brevo.com'
+  : (process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com').trim();
+const smtpPort = parseInt((process.env.SMTP_PORT || process.env.EMAIL_PORT || '587').trim(), 10);
 
 if (smtpUser && smtpPass) {
   smtpTransporter = nodemailer.createTransport({
