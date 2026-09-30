@@ -1,36 +1,43 @@
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
+const Mailjet = require('node-mailjet');
 
 // Configuration
-const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? 'resend' : 'smtp');
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'ZYVEN Healthcare';
-// On Resend free tier without a verified domain, must use onboarding@resend.dev as sender
-const EMAIL_FROM_ADDRESS = process.env.RESEND_API_KEY
-  ? (process.env.EMAIL_FROM_RESEND || 'onboarding@resend.dev')
-  : (process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@zyven.com');
-const FROM_HEADER = `"${EMAIL_FROM_NAME}" <${EMAIL_FROM_ADDRESS}>`;
-const REPLY_TO = process.env.EMAIL_REPLY_TO || (process.env.SMTP_USER || 'patelaryan4908@gmail.com');
+const REPLY_TO = process.env.EMAIL_REPLY_TO || 'patelaryan4908@gmail.com';
 
-// 1. Initialize Providers
-let resendClient = null;
-let smtpTransporter = null;
+// Determine FROM address based on provider
+const EMAIL_FROM_ADDRESS = process.env.MAILJET_FROM_EMAIL
+  || process.env.EMAIL_FROM
+  || process.env.SMTP_USER
+  || 'noreply@zyven.com';
 
-if (process.env.RESEND_API_KEY) {
-  resendClient = new Resend(process.env.RESEND_API_KEY);
+// 1. Initialize Mailjet (HTTP API — works on any cloud server, sends to any email)
+let mailjetClient = null;
+if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+  mailjetClient = Mailjet.apiConnect(
+    process.env.MAILJET_API_KEY,
+    process.env.MAILJET_SECRET_KEY
+  );
+  console.log('✅ Mailjet email provider initialized');
 }
 
-// Gmail / Standard SMTP Support
+// 2. Initialize Resend (fallback)
+let resendClient = null;
+if (!mailjetClient && process.env.RESEND_API_KEY) {
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  console.log('✅ Resend email provider initialized');
+}
+
+// 3. Initialize SMTP (last resort — may be blocked on Render)
+let smtpTransporter = null;
 const smtpUser = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
 const smtpPass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').trim();
-
-// Auto-detect Brevo from username to avoid bad hostname env var issues
 const isBrevo = smtpUser.includes('smtp-brevo.com') || smtpUser.includes('brevo');
-const smtpHost = isBrevo
-  ? 'smtp-relay.brevo.com'
-  : (process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com').trim();
+const smtpHost = isBrevo ? 'smtp-relay.brevo.com' : (process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com').trim();
 const smtpPort = parseInt((process.env.SMTP_PORT || process.env.EMAIL_PORT || '587').trim(), 10);
 
-if (smtpUser && smtpPass) {
+if (!mailjetClient && !resendClient && smtpUser && smtpPass) {
   smtpTransporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
@@ -39,12 +46,9 @@ if (smtpUser && smtpPass) {
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 8000,
-    headers: {
-      'X-Entity-Ref-ID': Date.now().toString(),
-      'X-Mailer': 'ZYVEN Healthcare Platform Mailer'
-    }
   });
 }
+
 
 // 2. Base Email Layout Generator (Table-based, mobile responsive, high deliverability)
 const generateEmailLayout = ({ title, preheader, contentHtml, isEmergency = false }) => {
@@ -124,51 +128,68 @@ const sendMail = async ({ to, subject, html, text, isEmergency = false }) => {
     return { success: false, message: 'Missing recipient email' };
   }
 
-  // A. Resend Delivery
+  const plainText = text || html.replace(/<[^>]*>?/gm, '').trim();
+
+  // A. Mailjet (HTTP API — works on Render, sends to any email for free)
+  if (mailjetClient) {
+    try {
+      const response = await mailjetClient.post('send', { version: 'v3.1' }).request({
+        Messages: [{
+          From: { Email: EMAIL_FROM_ADDRESS, Name: EMAIL_FROM_NAME },
+          To: [{ Email: to }],
+          ReplyTo: { Email: REPLY_TO },
+          Subject: subject,
+          HTMLPart: html,
+          TextPart: plainText,
+          Priority: isEmergency ? 1 : 2
+        }]
+      });
+      const status = response.body?.Messages?.[0]?.Status;
+      console.log(`✅ [Mailjet] Email sent to ${to}. Status: ${status}`);
+      return { success: true, provider: 'mailjet', status };
+    } catch (err) {
+      console.error('❌ [Mailjet Error]:', err.message);
+    }
+  }
+
+  // B. Resend (fallback)
   if (resendClient) {
     try {
       const response = await resendClient.emails.send({
-        from: FROM_HEADER,
+        from: `"${EMAIL_FROM_NAME}" <onboarding@resend.dev>`,
         to: [to],
         reply_to: REPLY_TO,
         subject,
         html,
-        text: text || html.replace(/<[^>]*>?/gm, '').trim(),
-        headers: isEmergency ? { 'X-Priority': '1 (Highest)', 'Importance': 'High' } : {}
+        text: plainText,
       });
-      console.log(`✅ [Resend] Email sent successfully to ${to}. ID: ${response.data?.id || 'delivered'}`);
-      return { success: true, messageId: response.data?.id, provider: 'resend' };
+      console.log(`✅ [Resend] Email sent to ${to}. ID: ${response.data?.id || 'delivered'}`);
+      return { success: true, provider: 'resend', messageId: response.data?.id };
     } catch (err) {
       console.error('❌ [Resend Error]:', err.message);
-      if (!smtpTransporter) return { success: false, error: err.message };
     }
   }
 
-  // B. SMTP / Gmail Delivery
+  // C. SMTP (last resort)
   if (smtpTransporter) {
     try {
       const info = await smtpTransporter.sendMail({
-        from: `"${EMAIL_FROM_NAME}" <${process.env.SMTP_USER || EMAIL_FROM_ADDRESS}>`,
-        to,
-        replyTo: REPLY_TO,
-        subject,
-        html,
-        text: text || html.replace(/<[^>]*>?/gm, '').trim(),
-        priority: isEmergency ? 'high' : 'normal',
-        headers: isEmergency ? { 'X-Priority': '1 (Highest)', 'Importance': 'High' } : {}
+        from: `"${EMAIL_FROM_NAME}" <${smtpUser || EMAIL_FROM_ADDRESS}>`,
+        to, replyTo: REPLY_TO, subject, html, text: plainText,
       });
-      console.log(`✅ [SMTP/Gmail] Email sent successfully to ${to}. MessageID: ${info.messageId}`);
-      return { success: true, messageId: info.messageId, provider: 'smtp' };
+      console.log(`✅ [SMTP] Email sent to ${to}. ID: ${info.messageId}`);
+      return { success: true, provider: 'smtp', messageId: info.messageId };
     } catch (err) {
       console.error('❌ [SMTP/Gmail Error]:', err.message);
       return { success: false, error: err.message };
     }
   }
 
-  // Safe Development Notice
-  console.log(`ℹ️ [Email Simulation] Rendered for ${to}: "${subject}"`);
+  // Dev simulation
+  console.log(`ℹ️ [Email Simulation] Would send "${subject}" to ${to}`);
   return { success: true, simulated: true };
 };
+
 
 // 4. Send 6-Digit Email OTP (Option 1: 100% Free, High Deliverability)
 const sendEmailOtp = async (email, otp, name = 'User') => {
