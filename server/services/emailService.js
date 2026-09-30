@@ -34,11 +34,11 @@ if (smtpUser && smtpPass) {
   smtpTransporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    secure: smtpPort === 465, // true for 465, false for 587
-    auth: {
-      user: smtpUser,
-      pass: smtpPass
-    },
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 8000,
     headers: {
       'X-Entity-Ref-ID': Date.now().toString(),
       'X-Mailer': 'ZYVEN Healthcare Platform Mailer'

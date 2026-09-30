@@ -78,14 +78,18 @@ const registerWithEmailOtp = async (req, res) => {
       });
     }
 
-    // Send 6-digit OTP email
-    await sendEmailOtp(cleanEmail, otpCode, name.trim());
-
-    return successResponse(res, '6-Digit verification code sent to your email.', {
+    // Respond immediately — don't wait for email to avoid 60s SMTP timeout blocking user
+    const responsePayload = {
       email: cleanEmail,
       name: name.trim(),
       role: role || 'Senior'
-    }, 201);
+    };
+    successResponse(res, '6-Digit verification code sent to your email.', responsePayload, 201);
+
+    // Send OTP email in background (non-blocking)
+    sendEmailOtp(cleanEmail, otpCode, name.trim()).catch(err => {
+      console.error('Background OTP email error:', err.message);
+    });
 
   } catch (error) {
     console.error('registerWithEmailOtp error:', error);
@@ -267,11 +271,11 @@ const forgotPassword = async (req, res) => {
     user.otp = { code: resetCode, expiresAt: resetExpiresAt };
     await user.save();
 
-    // Send Password Reset OTP email via Nodemailer
-    await sendPasswordResetOtp(cleanEmail, resetCode, user.name || 'User');
+    // Respond immediately, send email in background
+    successResponse(res, 'A 6-digit password reset code has been sent to your email.', { email: cleanEmail });
 
-    return successResponse(res, 'A 6-digit password reset code has been sent to your email.', {
-      email: cleanEmail
+    sendPasswordResetOtp(cleanEmail, resetCode, user.name || 'User').catch(err => {
+      console.error('Background reset OTP email error:', err.message);
     });
   } catch (error) {
     console.error('forgotPassword error:', error);
