@@ -27,11 +27,12 @@ app.use(cors({
   origin: (origin, callback) => {
     const allowed = [
       process.env.CLIENT_URL,
+      'https://zyven-app.vercel.app',       // hardcoded Vercel URL
       'http://localhost:5173',
       'http://localhost:3000',
     ].filter(Boolean);
-    // Allow requests with no origin (mobile apps, curl, Render health checks)
-    if (!origin || allowed.some(o => origin.startsWith(o))) {
+    // Allow: no origin (mobile/curl), Vercel preview URLs, or allowed list
+    if (!origin || origin.endsWith('.vercel.app') || allowed.some(o => origin.startsWith(o))) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked: ${origin}`));
