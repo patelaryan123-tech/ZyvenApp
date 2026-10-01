@@ -2,50 +2,42 @@ const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const Mailjet = require('node-mailjet');
 
-// Configuration
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'ZYVEN Healthcare';
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'patelaryan4908@gmail.com';
 
-// Determine FROM address based on provider
-const EMAIL_FROM_ADDRESS = process.env.MAILJET_FROM_EMAIL
-  || process.env.EMAIL_FROM
-  || process.env.SMTP_USER
-  || 'noreply@zyven.com';
+// 1. Resend (PRIMARY — uses onboarding@resend.dev which passes DMARC → inbox delivery)
+let resendClient = null;
+if (process.env.RESEND_API_KEY) {
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  console.log('✅ Resend email provider initialized (primary)');
+}
 
-// 1. Initialize Mailjet (HTTP API — works on any cloud server, sends to any email)
+// 2. Mailjet (FALLBACK — may fail DMARC for free webmail FROM addresses)
 let mailjetClient = null;
 if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
   mailjetClient = Mailjet.apiConnect(
     process.env.MAILJET_API_KEY,
     process.env.MAILJET_SECRET_KEY
   );
-  console.log('✅ Mailjet email provider initialized');
+  console.log('✅ Mailjet email provider initialized (fallback)');
 }
 
-// 2. Initialize Resend (fallback)
-let resendClient = null;
-if (!mailjetClient && process.env.RESEND_API_KEY) {
-  resendClient = new Resend(process.env.RESEND_API_KEY);
-  console.log('✅ Resend email provider initialized');
-}
+// Mailjet FROM address
+const MAILJET_FROM = process.env.MAILJET_FROM_EMAIL || 'patelaryan4908@gmail.com';
 
-// 3. Initialize SMTP (last resort — may be blocked on Render)
+// 3. SMTP (LAST RESORT — blocked on Render free tier)
 let smtpTransporter = null;
 const smtpUser = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
 const smtpPass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').trim();
 const isBrevo = smtpUser.includes('smtp-brevo.com') || smtpUser.includes('brevo');
-const smtpHost = isBrevo ? 'smtp-relay.brevo.com' : (process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com').trim();
-const smtpPort = parseInt((process.env.SMTP_PORT || process.env.EMAIL_PORT || '587').trim(), 10);
+const smtpHost = isBrevo ? 'smtp-relay.brevo.com' : (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+const smtpPort = parseInt((process.env.SMTP_PORT || '587').trim(), 10);
 
-if (!mailjetClient && !resendClient && smtpUser && smtpPass) {
+if (!resendClient && !mailjetClient && smtpUser && smtpPass) {
   smtpTransporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
+    host: smtpHost, port: smtpPort, secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 8000,
+    connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 8000,
   });
 }
 
@@ -130,12 +122,30 @@ const sendMail = async ({ to, subject, html, text, isEmergency = false }) => {
 
   const plainText = text || html.replace(/<[^>]*>?/gm, '').trim();
 
-  // A. Mailjet (HTTP API — works on Render, sends to any email for free)
+  // A. Resend PRIMARY — onboarding@resend.dev is properly DMARC authenticated → inbox delivery
+  if (resendClient) {
+    try {
+      const response = await resendClient.emails.send({
+        from: `"${EMAIL_FROM_NAME}" <onboarding@resend.dev>`,
+        to: [to],
+        reply_to: REPLY_TO,
+        subject,
+        html,
+        text: plainText,
+      });
+      console.log(`✅ [Resend] Email sent to ${to}. ID: ${response.data?.id}`);
+      return { success: true, provider: 'resend', messageId: response.data?.id };
+    } catch (err) {
+      console.error('❌ [Resend Error]:', err.message);
+    }
+  }
+
+  // B. Mailjet FALLBACK
   if (mailjetClient) {
     try {
       const response = await mailjetClient.post('send', { version: 'v3.1' }).request({
         Messages: [{
-          From: { Email: EMAIL_FROM_ADDRESS, Name: EMAIL_FROM_NAME },
+          From: { Email: MAILJET_FROM, Name: EMAIL_FROM_NAME },
           To: [{ Email: to }],
           ReplyTo: { Email: REPLY_TO },
           Subject: subject,
@@ -152,40 +162,21 @@ const sendMail = async ({ to, subject, html, text, isEmergency = false }) => {
     }
   }
 
-  // B. Resend (fallback)
-  if (resendClient) {
-    try {
-      const response = await resendClient.emails.send({
-        from: `"${EMAIL_FROM_NAME}" <onboarding@resend.dev>`,
-        to: [to],
-        reply_to: REPLY_TO,
-        subject,
-        html,
-        text: plainText,
-      });
-      console.log(`✅ [Resend] Email sent to ${to}. ID: ${response.data?.id || 'delivered'}`);
-      return { success: true, provider: 'resend', messageId: response.data?.id };
-    } catch (err) {
-      console.error('❌ [Resend Error]:', err.message);
-    }
-  }
-
-  // C. SMTP (last resort)
+  // C. SMTP last resort
   if (smtpTransporter) {
     try {
       const info = await smtpTransporter.sendMail({
-        from: `"${EMAIL_FROM_NAME}" <${smtpUser || EMAIL_FROM_ADDRESS}>`,
+        from: `"${EMAIL_FROM_NAME}" <${smtpUser}>`,
         to, replyTo: REPLY_TO, subject, html, text: plainText,
       });
       console.log(`✅ [SMTP] Email sent to ${to}. ID: ${info.messageId}`);
       return { success: true, provider: 'smtp', messageId: info.messageId };
     } catch (err) {
-      console.error('❌ [SMTP/Gmail Error]:', err.message);
+      console.error('❌ [SMTP Error]:', err.message);
       return { success: false, error: err.message };
     }
   }
 
-  // Dev simulation
   console.log(`ℹ️ [Email Simulation] Would send "${subject}" to ${to}`);
   return { success: true, simulated: true };
 };
