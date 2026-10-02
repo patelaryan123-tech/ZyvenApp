@@ -9,6 +9,8 @@ import {
 } from 'recharts';
 import useAuth from '../hooks/useAuth';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
+import MainLayout from '../layouts/MainLayout';
+
 
 export default function CaregiverDashboardPage() {
   const { user } = useAuth();
