@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Users, Activity, Bell, ShieldAlert, Heart, Calendar, Clock, ChevronRight
+  Users, Activity, Bell, ShieldAlert, Heart, Calendar, Clock, ChevronRight, AlertTriangle
 } from 'lucide-react';
+
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
   BarChart, Bar, XAxis, YAxis
