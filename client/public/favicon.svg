@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Dark green background -->
+  <rect width="64" height="64" rx="14" fill="#3D5A45"/>
+  
+  <!-- Heart shape -->
+  <path d="M32 48s-18-11.5-18-23a10 10 0 0 1 18-6 10 10 0 0 1 18 6c0 11.5-18 23-18 23z" fill="white" opacity="0.15"/>
+  
+  <!-- EKG / heartbeat line over heart -->
+  <path d="M14 32 h6 l3 -8 l4 16 l3 -10 l3 6 h17" 
+        stroke="white" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none"/>
+  
+  <!-- Small cross symbol top right -->
+  <rect x="44" y="12" width="3" height="10" rx="1.5" fill="white" opacity="0.9"/>
+  <rect x="40" y="16" width="11" height="3" rx="1.5" fill="white" opacity="0.9"/>
+</svg>
