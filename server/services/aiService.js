@@ -70,15 +70,25 @@ const callOllama = async (prompt, systemPrompt = '') => {
 
 // ─── Unified AI Call (Groq first, Ollama fallback) ───────────────────────────
 const callAI = async (prompt, systemPrompt = '') => {
+  let groqErr = null;
   if (GROQ_API_KEY) {
     try {
       return await callGroq(prompt, systemPrompt);
     } catch (err) {
+      groqErr = err;
       console.error('Groq failed, trying Ollama fallback:', err.message);
     }
+  } else {
+    console.warn('⚠️ GROQ_API_KEY is not defined in environment variables!');
   }
+
   // Fallback to Ollama
-  return await callOllama(prompt, systemPrompt);
+  try {
+    return await callOllama(prompt, systemPrompt);
+  } catch (ollamaErr) {
+    console.error('Ollama fallback also failed:', ollamaErr.message);
+    throw new Error(`AI generation failed. Groq: ${groqErr ? groqErr.message : 'No API key set'}. Ollama: ${ollamaErr.message}`);
+  }
 };
 
 // ─── JSON Extractor ───────────────────────────────────────────────────────────
