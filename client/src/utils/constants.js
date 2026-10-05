@@ -20,10 +20,13 @@ export const ROLES = {
 };
 
 export const LANGUAGES = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' }
+  { code: 'en', name: 'English', nativeName: 'English', speechLang: 'en-US' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', speechLang: 'hi-IN' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', speechLang: 'mr-IN' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', speechLang: 'ta-IN' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', speechLang: 'gu-IN' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', speechLang: 'te-IN' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', speechLang: 'bn-IN' }
 ];
 
 export const NAV_ITEMS = [

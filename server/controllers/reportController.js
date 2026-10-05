@@ -9,22 +9,25 @@ const uploadReport = async (req, res) => {
       return errorResponse(res, 'Please upload a file', 400);
     }
 
-    const { reportType } = req.body;
+    const { reportType, targetLanguage } = req.body;
     const userId = req.user.id;
+    const lang = targetLanguage || 'en';
 
     const report = await MedicalReport.create({
       userId,
       fileName: req.file.originalname,
       fileType: req.file.mimetype,
       reportType,
+      targetLanguage: lang,
       status: 'Processing'
     });
 
     // Process async
-    reportAnalyzer.processReport(req.file, reportType)
+    reportAnalyzer.processReport(req.file, reportType, lang)
       .then(async (result) => {
         report.extractedText = result.extractedText;
         report.aiAnalysis = result.analysis;
+        report.targetLanguage = lang;
         report.status = 'Completed';
         await report.save();
         
@@ -74,20 +77,26 @@ const deleteReport = async (req, res) => {
 
 const reanalyzeReport = async (req, res) => {
   try {
+    const { targetLanguage } = req.body;
+    const lang = targetLanguage || 'en';
+
     const report = await MedicalReport.findOne({ _id: req.params.id, userId: req.user.id });
     if (!report) return errorResponse(res, 'Report not found', 404);
     if (!report.extractedText) return errorResponse(res, 'No extracted text to analyze', 400);
 
     report.status = 'Processing';
+    report.targetLanguage = lang;
     await report.save();
 
-    reportAnalyzer.analyzeWithAI(report.extractedText, report.reportType)
+    reportAnalyzer.analyzeWithAI(report.extractedText, report.reportType, lang)
       .then(async (analysis) => {
         report.aiAnalysis = analysis;
+        report.targetLanguage = lang;
         report.status = 'Completed';
         await report.save();
       })
       .catch(async (error) => {
+        console.error('Re-analysis failed:', error);
         report.status = 'Failed';
         await report.save();
       });

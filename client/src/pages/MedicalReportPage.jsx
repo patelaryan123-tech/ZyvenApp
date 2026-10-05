@@ -16,10 +16,16 @@ import {
   Check,
   X,
   ScanLine,
-  Sparkles
+  Sparkles,
+  Languages,
+  Volume2,
+  VolumeX,
+  Globe
 } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
+import { LANGUAGES } from '../utils/constants';
+import useTextToSpeech from '../hooks/useTextToSpeech';
 
 const MedicalReportPage = () => {
   const [reports, setReports] = useState([]);
@@ -29,9 +35,18 @@ const MedicalReportPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [activeReport, setActiveReport] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Language state
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [modalTargetLanguage, setModalTargetLanguage] = useState('en');
+
+  // Text-To-Speech hook
+  const { speak, stop, speaking, supported: ttsSupported } = useTextToSpeech();
 
   // Camera state
   const videoRef = useRef(null);
@@ -46,6 +61,7 @@ const MedicalReportPage = () => {
     loadReports();
     return () => {
       stopCamera();
+      stop();
     };
   }, []);
 
@@ -53,9 +69,13 @@ const MedicalReportPage = () => {
     try {
       setIsLoading(true);
       const res = await reportService.getReports().catch(() => ({ data: [] }));
-      setReports(res.data || []);
-      if (res.data?.length > 0) {
-        setActiveReport(res.data[0]);
+      const reportsList = res.data || [];
+      setReports(reportsList);
+      if (reportsList.length > 0) {
+        setActiveReport(reportsList[0]);
+        if (reportsList[0].targetLanguage) {
+          setSelectedLanguage(reportsList[0].targetLanguage);
+        }
       }
     } catch (err) {
       console.error('Failed to load reports', err);
@@ -191,24 +211,32 @@ const MedicalReportPage = () => {
     multiple: false
   });
 
-  const handleAnalyze = async () => {
+  // Open modal to choose language before uploading & analyzing
+  const handleInitiateAnalysis = () => {
+    if (!selectedFile) return;
+    setShowLanguageModal(true);
+  };
+
+  // Confirm submit with chosen language
+  const handleConfirmAnalyzeWithLanguage = async (targetLang) => {
+    setShowLanguageModal(false);
     if (!selectedFile) return;
     
     setIsUploading(true);
     setError('');
     const formData = new FormData();
     formData.append('report', selectedFile);
-    // Always include reportType (required by backend validator)
     const reportType = selectedFile.type === 'application/pdf' ? 'Lab Report' : 'Medical Image';
     formData.append('reportType', reportType);
+    formData.append('targetLanguage', targetLang);
 
     try {
       const res = await reportService.uploadReport(formData);
-      // Backend returns 202 (accepted) - report processes async with Ollama
       const reportData = res?.data || res;
       if (reportData) {
         setReports(prev => [reportData, ...prev]);
         setActiveReport(reportData);
+        setSelectedLanguage(targetLang);
       }
       setSelectedFile(null);
       setPreview(null);
@@ -221,20 +249,44 @@ const MedicalReportPage = () => {
     }
   };
 
+  // Translate existing active report into another language
+  const handleTranslateReport = async (langCode) => {
+    if (!activeReport || !activeReport._id || isTranslating) return;
+    
+    stop(); // stop any playing audio
+    setSelectedLanguage(langCode);
+    setIsTranslating(true);
+    setError('');
 
-  const selectReport = async (report) => {
     try {
-      setActiveReport(report);
-      setSelectedFile(null);
-      setPreview(null);
-      setCapturedImage(null);
+      const res = await reportService.reanalyzeReport(activeReport._id, langCode);
+      const updatedReport = res?.data || res;
+      if (updatedReport) {
+        setActiveReport(updatedReport);
+        setReports(prev => prev.map(r => r._id === updatedReport._id ? updatedReport : r));
+      }
     } catch (err) {
-      console.error('Failed to load report details', err);
+      console.error('Translation failed', err);
+      setError('Failed to translate report breakdown into selected language.');
+    } finally {
+      setIsTranslating(false);
     }
+  };
+
+  const selectReport = (report) => {
+    stop();
+    setActiveReport(report);
+    if (report.targetLanguage) {
+      setSelectedLanguage(report.targetLanguage);
+    }
+    setSelectedFile(null);
+    setPreview(null);
+    setCapturedImage(null);
   };
 
   const deleteReport = async (e, id) => {
     e.stopPropagation();
+    stop();
     try {
       await reportService.deleteReport(id);
       setReports(reports.filter(r => r._id !== id));
@@ -246,11 +298,92 @@ const MedicalReportPage = () => {
     }
   };
 
+  // Read summary aloud
+  const handleSpeakSummary = () => {
+    if (speaking) {
+      stop();
+      return;
+    }
+    if (!activeReport?.aiAnalysis?.summary) return;
+
+    const currentLangObj = LANGUAGES.find(l => l.code === selectedLanguage) || LANGUAGES[0];
+    const speechLangCode = currentLangObj.speechLang || 'en-US';
+    
+    // Construct readable text
+    let fullText = activeReport.aiAnalysis.summary;
+    speak(fullText, speechLangCode);
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto flex flex-col md:flex-row gap-6 bg-[#FDFBF7] min-h-[calc(100vh-4rem)] font-sans">
       
       {/* Hidden Canvas for Camera Snapshots */}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* ─── LANGUAGE SELECTION MODAL ON SUBMIT ─────────────────────────── */}
+      {showLanguageModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-100 space-y-5">
+            
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center space-x-2 text-[#3D5A45]">
+                <Globe className="w-5 h-5 text-[#E07A5F]" />
+                <h3 className="font-extrabold text-base text-gray-900">
+                  Select Explanation Language
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowLanguageModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed font-medium">
+              Choose the language in which you want AI to break down and explain your report so it is easy to understand:
+            </p>
+
+            {/* Language Grid */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {LANGUAGES.map(lang => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => setModalTargetLanguage(lang.code)}
+                  className={`p-3 rounded-2xl border text-left flex flex-col transition-all cursor-pointer ${
+                    modalTargetLanguage === lang.code
+                      ? 'border-[#3D5A45] bg-[#EEF3EF] shadow-xs ring-2 ring-[#3D5A45]/20'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="font-extrabold text-sm text-gray-900">{lang.nativeName}</span>
+                  <span className="text-[11px] text-gray-500 font-semibold">{lang.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLanguageModal(false)}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmAnalyzeWithLanguage(modalTargetLanguage)}
+                className="flex-2 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                <span>Analyze & Explain</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Left Panel: Upload / Scan & Recent Reports */}
       <div className="w-full md:w-5/12 lg:w-4/12 flex flex-col gap-6">
@@ -342,7 +475,7 @@ const MedicalReportPage = () => {
                   )}
                   
                   <button
-                    onClick={handleAnalyze}
+                    onClick={handleInitiateAnalysis}
                     disabled={isUploading}
                     className="w-full bg-[#3D5A45] hover:bg-[#324a3a] text-white p-3 rounded-xl font-bold text-xs transition-all shadow-xs flex justify-center items-center gap-2 cursor-pointer disabled:opacity-70"
                   >
@@ -353,8 +486,8 @@ const MedicalReportPage = () => {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-                        <span>Analyze Document with AI</span>
+                        <Languages className="w-4 h-4 text-[#E07A5F]" />
+                        <span>Analyze & Select Language</span>
                       </>
                     )}
                   </button>
@@ -455,7 +588,7 @@ const MedicalReportPage = () => {
 
                     <button
                       type="button"
-                      onClick={handleAnalyze}
+                      onClick={handleInitiateAnalysis}
                       disabled={isUploading}
                       className="flex-2 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-70"
                     >
@@ -466,8 +599,8 @@ const MedicalReportPage = () => {
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-                          <span>Analyze with AI</span>
+                          <Languages className="w-4 h-4 text-[#E07A5F]" />
+                          <span>Analyze & Select Language</span>
                         </>
                       )}
                     </button>
@@ -511,7 +644,14 @@ const MedicalReportPage = () => {
                     </div>
                     <div className="truncate">
                       <p className="font-bold text-gray-900 text-xs truncate">{report.fileName || report.title || 'Medical Report'}</p>
-                      <p className="text-[10px] text-gray-400">{new Date(report.uploadedAt || report.createdAt || Date.now()).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {new Date(report.uploadedAt || report.createdAt || Date.now()).toLocaleDateString()}
+                        {report.targetLanguage && (
+                          <span className="ml-1.5 uppercase font-bold text-[9px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                            {report.targetLanguage}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-1">
@@ -539,18 +679,38 @@ const MedicalReportPage = () => {
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 h-full flex flex-col overflow-hidden relative">
           
           {/* Header */}
-          <div className="p-6 border-b border-gray-100 bg-[#3D5A45] text-white flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100 bg-[#3D5A45] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E07A5F] block">
                 Artificial Intelligence Report Diagnostic
               </span>
-              <h2 className="text-lg sm:text-xl font-black">AI Report Breakdown</h2>
+              <h2 className="text-lg sm:text-xl font-black flex items-center space-x-2">
+                <span>AI Report Breakdown</span>
+              </h2>
               {activeReport && <p className="text-xs opacity-80 mt-0.5 truncate max-w-md">{activeReport.fileName || activeReport.title}</p>}
             </div>
-            {activeReport?.aiAnalysis && (
-              <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-white flex items-center space-x-1">
-                <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
-                <span>Analyzed</span>
+
+            {/* Language Switcher Pills Header Bar */}
+            {activeReport && (
+              <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-xs p-1.5 rounded-2xl border border-white/10">
+                <Globe className="w-4 h-4 text-[#E07A5F] ml-1 hidden sm:block" />
+                <span className="text-[11px] font-bold text-white/80 hidden lg:inline">Explain in:</span>
+                <div className="flex space-x-1 overflow-x-auto max-w-xs scrollbar-none">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => handleTranslateReport(lang.code)}
+                      disabled={isTranslating}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                        selectedLanguage === lang.code
+                          ? 'bg-white text-[#3D5A45] shadow-xs'
+                          : 'text-white/80 hover:text-white hover:bg-white/20'
+                      }`}
+                    >
+                      {lang.nativeName}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -565,35 +725,57 @@ const MedicalReportPage = () => {
 
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
-            {isUploading ? (
-              <div className="space-y-5">
+            {isUploading || isTranslating ? (
+              <div className="space-y-5 py-6">
                 <div className="text-center py-6">
-                  <Loader2 className="w-8 h-8 text-[#3D5A45] animate-spin mx-auto mb-2" />
-                  <p className="text-sm font-bold text-gray-800">Analyzing Document with Google AI...</p>
-                  <p className="text-xs text-gray-500">Extracting medical metrics, abnormal lab markers & recommendations</p>
+                  <Loader2 className="w-10 h-10 text-[#3D5A45] animate-spin mx-auto mb-3" />
+                  <p className="text-base font-extrabold text-gray-900">
+                    {isTranslating ? `Translating Report Explanation...` : `Analyzing Document with AI...`}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Generating simple, senior-friendly breakdown in {LANGUAGES.find(l => l.code === selectedLanguage)?.name || 'selected language'}
+                  </p>
                 </div>
                 <LoadingSkeleton className="h-24 rounded-2xl" />
                 <LoadingSkeleton className="h-32 rounded-2xl" />
               </div>
             ) : !activeReport ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 py-12">
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 py-16">
                 <FileText className="w-16 h-16 opacity-20" />
-                <p className="text-sm font-semibold">Select a report from the left or scan a new document</p>
+                <p className="text-sm font-semibold text-center">Select a report from the left or scan a new document</p>
               </div>
             ) : !activeReport.aiAnalysis ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500 py-12">
+              <div className="h-full flex flex-col items-center justify-center text-gray-500 py-16">
                 <p className="text-sm">Analysis summary not available for this report.</p>
               </div>
             ) : (
               <div className="space-y-6">
                 
-                {/* 1. Summary */}
+                {/* 1. Summary + Read Aloud (TTS) Button */}
                 {activeReport.aiAnalysis.summary && (
                   <section>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <Info className="w-4 h-4 text-[#3D5A45]" /> Patient Summary
-                    </h3>
-                    <div className="bg-[#FDFBF7] p-4 rounded-2xl border border-gray-200/80 text-gray-700 text-xs sm:text-sm leading-relaxed">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <Info className="w-4 h-4 text-[#3D5A45]" /> Patient Summary
+                      </h3>
+
+                      {ttsSupported && (
+                        <button
+                          type="button"
+                          onClick={handleSpeakSummary}
+                          className={`flex items-center space-x-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            speaking 
+                              ? 'bg-amber-500 text-white animate-pulse' 
+                              : 'bg-[#EEF3EF] text-[#3D5A45] hover:bg-[#3D5A45] hover:text-white'
+                          }`}
+                        >
+                          {speaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          <span>{speaking ? 'Stop Audio' : 'Listen 🔊'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="bg-[#FDFBF7] p-4 sm:p-5 rounded-2xl border border-gray-200/80 text-gray-800 text-xs sm:text-sm leading-relaxed font-medium">
                       {activeReport.aiAnalysis.summary}
                     </div>
                   </section>
@@ -607,9 +789,9 @@ const MedicalReportPage = () => {
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {activeReport.aiAnalysis.abnormalValues.map((item, idx) => (
-                        <div key={idx} className="bg-red-50/80 p-3 rounded-2xl border border-red-200 flex justify-between items-center text-xs">
-                          <span className="font-bold text-red-900">{item.name || item}</span>
-                          {item.value && (
+                        <div key={idx} className="bg-red-50/80 p-3.5 rounded-2xl border border-red-200 flex justify-between items-center text-xs">
+                          <span className="font-bold text-red-900">{typeof item === 'object' ? item.name : item}</span>
+                          {typeof item === 'object' && item.value && (
                             <div className="text-right">
                               <span className="font-black text-red-700">{item.value}</span>
                               <span className="text-[10px] text-red-600 ml-1 bg-red-100 px-2 py-0.5 rounded-full font-bold">
@@ -631,7 +813,7 @@ const MedicalReportPage = () => {
                     </h3>
                     <ul className="space-y-2">
                       {activeReport.aiAnalysis.keyFindings.map((finding, idx) => (
-                        <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-700 bg-white p-3 rounded-xl border border-gray-100 shadow-2xs">
+                        <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-800 bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs font-medium">
                           <span className="w-2 h-2 rounded-full bg-[#3D5A45] mt-1.5 flex-shrink-0"></span>
                           <span>{finding}</span>
                         </li>
@@ -649,7 +831,7 @@ const MedicalReportPage = () => {
                     <div className="bg-[#EEF3EF]/70 p-4 rounded-2xl border border-[#3D5A45]/20">
                       <ul className="space-y-2.5">
                         {activeReport.aiAnalysis.recommendations.map((rec, idx) => (
-                          <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-800">
+                          <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-800 font-medium">
                             <span className="text-[#3D5A45] font-extrabold">{idx + 1}.</span>
                             <span>{rec}</span>
                           </li>
@@ -668,7 +850,7 @@ const MedicalReportPage = () => {
                     <div className="bg-[#FDF2EF] p-4 rounded-2xl border border-[#E07A5F]/20">
                       <ul className="space-y-2">
                         {activeReport.aiAnalysis.questionsForDoctor.map((q, idx) => (
-                          <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-800">
+                          <li key={idx} className="flex gap-2.5 text-xs sm:text-sm text-gray-800 font-medium">
                             <span className="text-[#E07A5F] font-black text-base leading-none">?</span>
                             <span>{q}</span>
                           </li>

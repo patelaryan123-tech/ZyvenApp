@@ -22,11 +22,11 @@ const extractTextFromImage = async (buffer) => {
   }
 };
 
-const analyzeWithAI = async (text, reportType) => {
-  return await aiService.analyzeReport(text, reportType);
+const analyzeWithAI = async (text, reportType, targetLanguage = 'en') => {
+  return await aiService.analyzeReport(text, reportType, targetLanguage);
 };
 
-const processReport = async (file, reportType) => {
+const processReport = async (file, reportType, targetLanguage = 'en') => {
   let text = '';
   
   if (file.mimetype === 'application/pdf') {
@@ -39,7 +39,7 @@ const processReport = async (file, reportType) => {
     throw new Error('Unsupported file type');
   }
   
-  const analysis = await analyzeWithAI(text, reportType);
+  const analysis = await analyzeWithAI(text, reportType, targetLanguage);
   
   return {
     extractedText: text,

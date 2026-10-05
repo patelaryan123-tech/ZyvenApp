@@ -20,5 +20,9 @@ export const reportService = {
   deleteReport: async (id) => {
     const response = await api.delete(`/reports/${id}`);
     return response.data;
+  },
+  reanalyzeReport: async (id, targetLanguage) => {
+    const response = await api.post(`/reports/${id}/reanalyze`, { targetLanguage });
+    return response.data;
   }
 };

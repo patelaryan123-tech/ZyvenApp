@@ -176,21 +176,35 @@ IMPORTANT: End every response with: 'Disclaimer: This is AI-generated informatio
 };
 
 // ─── Analyze Medical Report ───────────────────────────────────────────────────
-const analyzeReport = async (extractedText, reportType) => {
+const analyzeReport = async (extractedText, reportType, targetLanguage = 'en') => {
   try {
-    const systemPrompt = `You are a medical document analyzer. Analyze the provided medical report and return ONLY a valid JSON object without any markdown code blocks or explanatory text.`;
+    const languageMap = {
+      'en': 'English',
+      'hi': 'Hindi (हिन्दी)',
+      'mr': 'Marathi (मराठी)',
+      'ta': 'Tamil (தமிழ்)',
+      'gu': 'Gujarati (ગુજરાતી)',
+      'te': 'Telugu (తెలుగు)',
+      'bn': 'Bengali (বাংলা)'
+    };
+    const langName = languageMap[targetLanguage] || targetLanguage || 'English';
+
+    const systemPrompt = `You are an expert medical document analyzer and translator specialized in senior healthcare.
+Analyze the provided medical report and return ONLY a valid JSON object without any markdown code blocks or explanatory text.
+IMPORTANT CRITICAL REQUIREMENT: All explanations, summaries, findings, abnormal metrics, recommendations, and questions MUST be written in ${langName}. Use simple, empathetic, senior-friendly language so elderly patients can easily understand their health report.`;
 
     const prompt = `Report Type: ${reportType}
+Target Language for explanation: ${langName}
 Report Content:
 ${extractedText}
 
-Respond ONLY in this exact JSON format:
+Respond ONLY in this exact JSON format (all text inside string values MUST be in ${langName}):
 {
-  "summary": "Brief overall summary of the report",
-  "keyFindings": ["Key finding 1", "Key finding 2"],
-  "abnormalValues": ["Abnormal value 1 with explanation"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "questionsForDoctor": ["Question 1 to ask the doctor"]
+  "summary": "Clear, compassionate, simple overall summary of the report written in ${langName}",
+  "keyFindings": ["Key finding 1 explained simply in ${langName}", "Key finding 2 in ${langName}"],
+  "abnormalValues": ["Abnormal metric 1 with simple explanation in ${langName}"],
+  "recommendations": ["Easy actionable recommendation 1 in ${langName}", "Recommendation 2 in ${langName}"],
+  "questionsForDoctor": ["Simple question 1 to ask the doctor in ${langName}"]
 }`;
 
     const rawResponse = await callAI(prompt, systemPrompt);
@@ -199,7 +213,7 @@ Respond ONLY in this exact JSON format:
     if (parsed && parsed.summary) return parsed;
 
     return {
-      summary: rawResponse.substring(0, 300) || 'Medical report processed.',
+      summary: rawResponse.substring(0, 300) || `Medical report processed in ${langName}.`,
       keyFindings: ['Extracted report details'],
       abnormalValues: [],
       recommendations: ['Consult with a primary care physician to review full findings'],

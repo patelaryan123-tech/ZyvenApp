@@ -38,6 +38,10 @@ const medicalReportSchema = new mongoose.Schema({
     enum: ['Uploaded', 'Processing', 'Completed', 'Failed'],
     default: 'Uploaded'
   },
+  targetLanguage: {
+    type: String,
+    default: 'en'
+  },
   uploadedAt: {
     type: Date,
     default: Date.now
