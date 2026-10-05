@@ -27,7 +27,8 @@ const getActiveGroqModels = async () => {
     process.env.GROQ_MODEL,
     'llama-3.1-8b-instant',
     'llama-3.3-70b-versatile',
-    'llama3-8b-8192'
+    'qwen/qwen3.8-27b',
+    'gemma2-9b-it'
   ].filter(Boolean);
 
   try {
@@ -37,12 +38,24 @@ const getActiveGroqModels = async () => {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.data) && data.data.length > 0) {
-        const liveModels = data.data.map(m => m.id).filter(id => !id.includes('whisper') && !id.includes('safeguard'));
-        if (liveModels.length > 0) {
-          cachedGroqModels = liveModels;
+        // Filter out audio, safeguard, guardrail, and TTS models
+        const liveModels = data.data
+          .map(m => m.id)
+          .filter(id => 
+            !id.includes('whisper') && 
+            !id.includes('safeguard') && 
+            !id.includes('guard') && 
+            !id.includes('canopy') && 
+            !id.includes('orpheus')
+          );
+        
+        // Merge with fallback candidates to guarantee working models
+        const combined = Array.from(new Set([...fallbackList, ...liveModels]));
+        if (combined.length > 0) {
+          cachedGroqModels = combined;
           lastModelFetchTime = now;
-          console.log('✅ Dynamically fetched active Groq models:', liveModels);
-          return liveModels;
+          console.log('✅ Dynamically fetched & prioritized active Groq models:', combined);
+          return combined;
         }
       }
     }

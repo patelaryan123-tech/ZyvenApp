@@ -25,18 +25,30 @@ const uploadReport = async (req, res) => {
     // Process async
     reportAnalyzer.processReport(req.file, reportType, lang)
       .then(async (result) => {
-        report.extractedText = result.extractedText;
-        report.aiAnalysis = result.analysis;
-        report.targetLanguage = lang;
-        report.status = 'Completed';
-        await report.save();
+        const freshReport = await MedicalReport.findById(report._id);
+        if (!freshReport) {
+          console.log('Report document was removed during processing, skipping update.');
+          return;
+        }
+        freshReport.extractedText = result.extractedText;
+        freshReport.aiAnalysis = result.analysis;
+        freshReport.targetLanguage = lang;
+        freshReport.status = 'Completed';
+        await freshReport.save();
         
-        emailService.sendReportReady(req.user, report).catch(console.error);
+        emailService.sendReportReady(req.user, freshReport).catch(console.error);
       })
       .catch(async (error) => {
         console.error('Report processing failed:', error);
-        report.status = 'Failed';
-        await report.save();
+        try {
+          const freshReport = await MedicalReport.findById(report._id);
+          if (freshReport) {
+            freshReport.status = 'Failed';
+            await freshReport.save();
+          }
+        } catch (e) {
+          console.error('Failed to mark report as Failed:', e.message);
+        }
       });
 
     return successResponse(res, 'Report uploaded and processing started', report, 202);
@@ -90,15 +102,22 @@ const reanalyzeReport = async (req, res) => {
 
     reportAnalyzer.analyzeWithAI(report.extractedText, report.reportType, lang)
       .then(async (analysis) => {
-        report.aiAnalysis = analysis;
-        report.targetLanguage = lang;
-        report.status = 'Completed';
-        await report.save();
+        const freshReport = await MedicalReport.findById(report._id);
+        if (!freshReport) return;
+        freshReport.aiAnalysis = analysis;
+        freshReport.targetLanguage = lang;
+        freshReport.status = 'Completed';
+        await freshReport.save();
       })
       .catch(async (error) => {
         console.error('Re-analysis failed:', error);
-        report.status = 'Failed';
-        await report.save();
+        try {
+          const freshReport = await MedicalReport.findById(report._id);
+          if (freshReport) {
+            freshReport.status = 'Failed';
+            await freshReport.save();
+          }
+        } catch (e) {}
       });
 
     return successResponse(res, 'Re-analysis started', report, 202);
