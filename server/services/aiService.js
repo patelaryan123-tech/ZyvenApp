@@ -14,32 +14,52 @@ if (GROQ_API_KEY) {
   console.log(`⚠️  No GROQ_API_KEY found — falling back to Ollama at ${OLLAMA_BASE_URL}`);
 }
 
+const CANDIDATE_MODELS = [
+  process.env.GROQ_MODEL,
+  'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile',
+  'gemma2-9b-it',
+  'mixtral-8x7b-32768'
+].filter(Boolean);
+
 // ─── Groq API Call ───────────────────────────────────────────────────────────
 const callGroq = async (userPrompt, systemPrompt = '') => {
-  const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 1024
-    })
-  });
+  let lastError = null;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Groq API error (${response.status}): ${errText}`);
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1024
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Groq model ${modelName} failed (${response.status}): ${errText}`);
+      }
+
+      const data = await response.json();
+      const result = data.choices?.[0]?.message?.content;
+      if (result) return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${modelName} failed, attempting next model... Error: ${err.message}`);
+    }
   }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  throw lastError || new Error('All Groq candidate models failed');
 };
 
 // ─── Ollama API Call (fallback) ───────────────────────────────────────────────
