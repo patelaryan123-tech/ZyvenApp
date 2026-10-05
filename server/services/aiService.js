@@ -14,19 +14,51 @@ if (GROQ_API_KEY) {
   console.log(`⚠️  No GROQ_API_KEY found — falling back to Ollama at ${OLLAMA_BASE_URL}`);
 }
 
-const CANDIDATE_MODELS = [
-  process.env.GROQ_MODEL,
-  'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
-  'gemma2-9b-it',
-  'mixtral-8x7b-32768'
-].filter(Boolean);
+let cachedGroqModels = null;
+let lastModelFetchTime = 0;
+
+const getActiveGroqModels = async () => {
+  const now = Date.now();
+  if (cachedGroqModels && (now - lastModelFetchTime < 1000 * 60 * 60)) {
+    return cachedGroqModels;
+  }
+
+  const fallbackList = [
+    process.env.GROQ_MODEL,
+    'llama-3.1-8b-instant',
+    'llama-3.3-70b-versatile',
+    'llama3-8b-8192'
+  ].filter(Boolean);
+
+  try {
+    const res = await fetch(`${GROQ_BASE_URL}/models`, {
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.data) && data.data.length > 0) {
+        const liveModels = data.data.map(m => m.id).filter(id => !id.includes('whisper') && !id.includes('safeguard'));
+        if (liveModels.length > 0) {
+          cachedGroqModels = liveModels;
+          lastModelFetchTime = now;
+          console.log('✅ Dynamically fetched active Groq models:', liveModels);
+          return liveModels;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch dynamic Groq model list, using fallback list:', err.message);
+  }
+
+  return fallbackList;
+};
 
 // ─── Groq API Call ───────────────────────────────────────────────────────────
 const callGroq = async (userPrompt, systemPrompt = '') => {
   let lastError = null;
+  const candidateModels = await getActiveGroqModels();
 
-  for (const modelName of CANDIDATE_MODELS) {
+  for (const modelName of candidateModels) {
     try {
       const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
         method: 'POST',
