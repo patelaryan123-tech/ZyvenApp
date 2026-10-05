@@ -119,7 +119,7 @@ IMPORTANT: End every response with: 'Disclaimer: This is AI-generated informatio
     return reply.trim();
   } catch (error) {
     console.error('Error in chatWithAI:', error);
-    return `I am currently unable to reach the AI assistant. Please check your internet connection and try again.\n\nDisclaimer: This is AI-generated information and not a medical diagnosis.`;
+    return `I am currently unable to reach the AI assistant (${error.message || 'connection failed'}). Please check your configuration and try again.\n\nDisclaimer: This is AI-generated information and not a medical diagnosis.`;
   }
 };
 
