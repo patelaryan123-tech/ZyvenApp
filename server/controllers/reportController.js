@@ -36,7 +36,9 @@ const uploadReport = async (req, res) => {
         freshReport.status = 'Completed';
         await freshReport.save();
         
-        emailService.sendReportReady(req.user, freshReport).catch(console.error);
+        if (emailService && typeof emailService.sendReportReady === 'function') {
+          emailService.sendReportReady(req.user, freshReport).catch(console.error);
+        }
       })
       .catch(async (error) => {
         console.error('Report processing failed:', error);

@@ -10,6 +10,7 @@ const { generalLimiter } = require('./middleware/rateLimiter');
 require('./config/firebase'); // Initializes firebase admin
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Connect to database & seed initial verified data

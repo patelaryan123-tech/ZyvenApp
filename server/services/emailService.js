@@ -420,6 +420,32 @@ const sendTestEmail = async (to) => {
   return await sendMail({ to, subject, html, text: plainText });
 };
 
+// 10. Report Ready Email Notification
+const sendReportReady = async (user, report) => {
+  if (!user || !user.email) return;
+  const name = user.name || 'there';
+  const reportName = report?.fileName || report?.title || 'Medical Report';
+  const subject = `Your Medical Report Breakdown is Ready: ${reportName}`;
+  const preheader = `AI breakdown and diagnostic summary available for ${reportName}.`;
+
+  const contentHtml = `
+    <h2 style="margin: 0 0 14px 0; font-size: 20px; color: #111827; font-weight: 800;">Medical Report Analysis Complete</h2>
+    <p style="margin: 0 0 16px 0;">Hello <strong>${name}</strong>, your uploaded report <strong>${reportName}</strong> has been analyzed by ZYVEN AI.</p>
+
+    <div style="background-color: #EEF3EF; border: 1px solid #3D5A45; border-radius: 12px; padding: 18px 20px; margin: 20px 0;">
+      <h4 style="margin: 0 0 8px 0; color: #3D5A45; font-size: 15px;">Report Diagnostic Overview</h4>
+      <p style="margin: 0; font-size: 13px; color: #1F2937;">Log in to your ZYVEN portal to view the complete multi-language breakdown, abnormal metric alerts, and doctor recommendations.</p>
+    </div>
+
+    <p>Health & Peace,<br /><strong>The ZYVEN Team</strong></p>
+  `;
+
+  const plainText = `Medical Report Analysis Complete\n\nHello ${name},\nYour report "${reportName}" is analyzed. View your breakdown on ZYVEN.\n\nRegards,\nZYVEN Team`;
+
+  const html = generateEmailLayout({ title: subject, preheader, contentHtml });
+  return await sendMail({ to: user.email, subject, html, text: plainText });
+};
+
 module.exports = {
   sendMail,
   sendEmailOtp,
@@ -428,5 +454,6 @@ module.exports = {
   sendWelcomeEmail,
   sendMedicationReminder,
   sendEmergencyAlert,
+  sendReportReady,
   sendTestEmail
 };
