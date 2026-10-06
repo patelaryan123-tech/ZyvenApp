@@ -163,6 +163,9 @@ export const AuthProvider = ({ children }) => {
       if (err.code === 'auth/unauthorized-domain') {
         throw new Error(`Domain (${window.location.hostname}) is not authorized in Firebase Console. Please add this domain under Firebase > Authentication > Settings > Authorized Domains.`);
       }
+      if (err.code === 'auth/operation-not-allowed') {
+        throw new Error('Google Sign-In is not enabled in Firebase. Please enable "Google" provider under Firebase Console > Authentication > Sign-in method.');
+      }
       if (err.message && err.message.includes("reading 'settings'")) {
         throw new Error('Google Sign-In failed to initialize. Please refresh the page or sign in with Email OTP.');
       }
