@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
- import { motion, AnimatePresence } from 'framer-motion';
- import { 
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
   Eye, 
   EyeOff, 
   Loader2, 
@@ -15,7 +15,8 @@ import { useNavigate, Link } from 'react-router-dom';
   AlertCircle,
   ArrowRight,
   RefreshCw,
-  Clock
+  Clock,
+  Calendar
 } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import { ROLES } from '../utils/constants';
@@ -43,6 +44,7 @@ const RegisterPage = () => {
   // Common fields
   const [name, setName] = useState('');
   const [role, setRole] = useState(ROLES.SENIOR);
+  const [age, setAge] = useState(65);
   
   // Email fields
   const [email, setEmail] = useState('');
@@ -85,6 +87,10 @@ const RegisterPage = () => {
       setError('Please enter your full name.');
       return;
     }
+    if (role === ROLES.SENIOR && (!age || Number(age) <= 0 || Number(age) > 120)) {
+      setError('Please enter a valid age for the Senior / Patient profile (e.g. 65).');
+      return;
+    }
     if (!email.trim()) {
       setError('Please enter your email address.');
       return;
@@ -100,10 +106,10 @@ const RegisterPage = () => {
 
     setIsLoading(true);
     try {
-      await registerWithEmailOtp(name.trim(), email.trim(), password, role);
+      await registerWithEmailOtp(name.trim(), email.trim(), password, role, role === ROLES.SENIOR ? Number(age) : undefined);
       setEmailOtpSent(true);
       setEmailCooldown(30);
-      setSuccessMsg(`6-Digit OTP sent to ${email.trim()}. (Check your inbox or backend terminal)`);
+      setSuccessMsg(`6-Digit OTP sent to ${email.trim()}.`);
     } catch (err) {
       setError(formatAuthError(err));
     } finally {
@@ -283,6 +289,34 @@ const RegisterPage = () => {
               />
             </div>
           </div>
+
+          {/* Conditional Age Field for Senior / Patient */}
+          {role === ROLES.SENIOR && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Age (Years) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-[#3D5A45] absolute left-3.5 top-3.5 pointer-events-none" />
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  required={role === ROLES.SENIOR}
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50/60 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#3D5A45] focus:border-[#3D5A45] transition-all outline-none text-gray-900 text-sm font-semibold"
+                  placeholder="e.g. 65"
+                />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">Used to personalize health reports and government scheme eligibility.</p>
+            </motion.div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">

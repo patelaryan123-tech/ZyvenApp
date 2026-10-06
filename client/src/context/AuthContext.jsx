@@ -96,12 +96,13 @@ export const AuthProvider = ({ children }) => {
 
 
   // 1. REGISTER WITH EMAIL & 6-DIGIT OTP (NODEMAILER)
-  const registerWithEmailOtp = async (name, email, password, role) => {
+  const registerWithEmailOtp = async (name, email, password, role, age) => {
     const response = await api.post('/auth/register-otp', {
       name,
       email,
       password,
-      role: role || 'Senior'
+      role: role || 'Senior',
+      age: age ? Number(age) : undefined
     });
     return response.data;
   };
