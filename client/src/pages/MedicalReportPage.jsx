@@ -708,7 +708,7 @@ const MedicalReportPage = () => {
 
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
-            {isUploading || isTranslating ? (
+            {isUploading || isTranslating || activeReport?.status === 'Processing' ? (
               <div className="space-y-5 py-6">
                 <div className="text-center py-6">
                   <Loader2 className="w-10 h-10 text-[#3D5A45] animate-spin mx-auto mb-3" />

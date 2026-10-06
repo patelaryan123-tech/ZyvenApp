@@ -17,43 +17,30 @@ const uploadReport = async (req, res) => {
       userId,
       fileName: req.file.originalname,
       fileType: req.file.mimetype,
-      reportType,
+      reportType: reportType || 'Medical Report',
       targetLanguage: lang,
       status: 'Processing'
     });
 
-    // Process async
-    reportAnalyzer.processReport(req.file, reportType, lang)
-      .then(async (result) => {
-        const freshReport = await MedicalReport.findById(report._id);
-        if (!freshReport) {
-          console.log('Report document was removed during processing, skipping update.');
-          return;
-        }
-        freshReport.extractedText = result.extractedText;
-        freshReport.aiAnalysis = result.analysis;
-        freshReport.targetLanguage = lang;
-        freshReport.status = 'Completed';
-        await freshReport.save();
-        
-        if (emailService && typeof emailService.sendReportReady === 'function') {
-          emailService.sendReportReady(req.user, freshReport).catch(console.error);
-        }
-      })
-      .catch(async (error) => {
-        console.error('Report processing failed:', error);
-        try {
-          const freshReport = await MedicalReport.findById(report._id);
-          if (freshReport) {
-            freshReport.status = 'Failed';
-            await freshReport.save();
-          }
-        } catch (e) {
-          console.error('Failed to mark report as Failed:', e.message);
-        }
-      });
+    try {
+      const result = await reportAnalyzer.processReport(req.file, reportType || 'Medical Report', lang);
+      report.extractedText = result.extractedText;
+      report.aiAnalysis = result.analysis;
+      report.targetLanguage = lang;
+      report.status = 'Completed';
+      await report.save();
 
-    return successResponse(res, 'Report uploaded and processing started', report, 202);
+      if (emailService && typeof emailService.sendReportReady === 'function') {
+        emailService.sendReportReady(req.user, report).catch(console.error);
+      }
+
+      return successResponse(res, 'Report uploaded and analyzed successfully', report, 200);
+    } catch (procErr) {
+      console.error('Report processing failed:', procErr);
+      report.status = 'Failed';
+      await report.save();
+      return errorResponse(res, `Failed to analyze report: ${procErr.message}`, 500);
+    }
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
@@ -102,27 +89,19 @@ const reanalyzeReport = async (req, res) => {
     report.targetLanguage = lang;
     await report.save();
 
-    reportAnalyzer.analyzeWithAI(report.extractedText, report.reportType, lang)
-      .then(async (analysis) => {
-        const freshReport = await MedicalReport.findById(report._id);
-        if (!freshReport) return;
-        freshReport.aiAnalysis = analysis;
-        freshReport.targetLanguage = lang;
-        freshReport.status = 'Completed';
-        await freshReport.save();
-      })
-      .catch(async (error) => {
-        console.error('Re-analysis failed:', error);
-        try {
-          const freshReport = await MedicalReport.findById(report._id);
-          if (freshReport) {
-            freshReport.status = 'Failed';
-            await freshReport.save();
-          }
-        } catch (e) {}
-      });
-
-    return successResponse(res, 'Re-analysis started', report, 202);
+    try {
+      const analysis = await reportAnalyzer.analyzeWithAI(report.extractedText, report.reportType, lang);
+      report.aiAnalysis = analysis;
+      report.targetLanguage = lang;
+      report.status = 'Completed';
+      await report.save();
+      return successResponse(res, 'Re-analysis completed successfully', report, 200);
+    } catch (procErr) {
+      console.error('Re-analysis failed:', procErr);
+      report.status = 'Failed';
+      await report.save();
+      return errorResponse(res, `Re-analysis failed: ${procErr.message}`, 500);
+    }
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
