@@ -160,6 +160,9 @@ export const AuthProvider = ({ children }) => {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         throw new Error('Google sign-in popup was closed before completing login.');
       }
+      if (err.code === 'auth/unauthorized-domain') {
+        throw new Error(`Domain (${window.location.hostname}) is not authorized in Firebase Console. Please add this domain under Firebase > Authentication > Settings > Authorized Domains.`);
+      }
       if (err.message && err.message.includes("reading 'settings'")) {
         throw new Error('Google Sign-In failed to initialize. Please refresh the page or sign in with Email OTP.');
       }
