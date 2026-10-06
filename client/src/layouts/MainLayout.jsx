@@ -25,7 +25,7 @@ const MainLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#FDFBF7] pb-20 md:pb-0">
-          <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 lg:py-8 min-h-full">
+          <div className="w-full min-h-full">
             <Outlet />
           </div>
         </main>

@@ -381,8 +381,8 @@ export default function HospitalFinderPage() {
         </div>
 
         {/* Right Column: Interactive Map View */}
-        <div className="lg:col-span-6 sticky top-24">
-          <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm h-[400px] lg:h-[750px] relative z-10">
+        <div className="lg:col-span-6 relative lg:sticky lg:top-24">
+          <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm h-[300px] sm:h-[400px] lg:h-[750px] relative z-10">
             <MapContainer
               center={mapCenter}
               zoom={12}

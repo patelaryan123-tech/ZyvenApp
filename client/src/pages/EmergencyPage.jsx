@@ -309,7 +309,7 @@ export default function EmergencyPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Column: Big Obvious Circular SOS Trigger */}
-        <div className="lg:col-span-7 bg-white p-6 sm:p-10 rounded-3xl border border-gray-100 shadow-xs flex flex-col items-center justify-center text-center relative overflow-hidden">
+        <div className="lg:col-span-7 bg-white p-4 sm:p-10 rounded-3xl border border-gray-100 shadow-xs flex flex-col items-center justify-center text-center relative overflow-hidden">
           
           <div className="max-w-md w-full flex flex-col items-center">
             <h2 className="text-xl font-extrabold text-gray-900 mb-1">
