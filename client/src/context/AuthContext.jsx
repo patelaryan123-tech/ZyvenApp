@@ -143,11 +143,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 5. GOOGLE SIGN-IN
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (roleHint = null) => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     const userCredential = await signInWithPopup(auth, provider);
     const fbUser = userCredential.user;
-    const dbUser = await syncWithBackend(fbUser);
+    const dbUser = await syncWithBackend(fbUser, roleHint);
     setFirebaseUser(fbUser);
     setUser(dbUser);
     return { emailVerified: true, firebaseUser: fbUser, user: dbUser };

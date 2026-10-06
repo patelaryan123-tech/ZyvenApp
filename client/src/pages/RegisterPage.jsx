@@ -61,8 +61,26 @@ const RegisterPage = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const { registerWithEmailOtp, verifyEmailOtp, resendEmailOtp } = useAuth();
+  const { registerWithEmailOtp, verifyEmailOtp, resendEmailOtp, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setSuccessMsg('');
+    setIsLoading(true);
+    try {
+      const result = await loginWithGoogle(role);
+      if (result.user?.role === ROLES.CAREGIVER) {
+        navigate('/caregiver');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(formatAuthError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Cooldown countdown timer
   useEffect(() => {
@@ -477,6 +495,28 @@ const RegisterPage = () => {
           </div>
         </form>
       )}
+
+      {/* Google Login */}
+      <div className="my-5 flex items-center">
+        <div className="flex-1 border-t border-gray-200" />
+        <span className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">or</span>
+        <div className="flex-1 border-t border-gray-200" />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isLoading}
+        className="w-full py-2.5 px-4 border border-gray-200/90 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-all flex items-center justify-center space-x-2.5 text-xs sm:text-sm cursor-pointer shadow-xs disabled:opacity-70"
+      >
+        <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
+          <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z" />
+          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
+          <path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.6 7.2C.6 9.2 0 11.5 0 14s.6 4.8 1.6 6.8l3.7-3.1z" />
+          <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16.1C3.5 19.9 7.4 23 12 23z" />
+        </svg>
+        <span>Continue with Google</span>
+      </button>
 
       {/* Switch to Login */}
       <div className="mt-6 pt-5 border-t border-gray-100 text-center">
