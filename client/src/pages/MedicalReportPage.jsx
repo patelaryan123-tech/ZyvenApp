@@ -40,10 +40,9 @@ const MedicalReportPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Language state
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [modalTargetLanguage, setModalTargetLanguage] = useState('en');
+  // Language state for initial upload & header switching
+  const [uploadLanguage, setUploadLanguage] = useState('hi'); // Default to Hindi for seniors or English
+  const [selectedLanguage, setSelectedLanguage] = useState('hi');
 
   // Text-To-Speech hook
   const { speak, stop, speaking, supported: ttsSupported } = useTextToSpeech();
@@ -75,6 +74,7 @@ const MedicalReportPage = () => {
         setActiveReport(reportsList[0]);
         if (reportsList[0].targetLanguage) {
           setSelectedLanguage(reportsList[0].targetLanguage);
+          setUploadLanguage(reportsList[0].targetLanguage);
         }
       }
     } catch (err) {
@@ -211,15 +211,8 @@ const MedicalReportPage = () => {
     multiple: false
   });
 
-  // Open modal to choose language before uploading & analyzing
-  const handleInitiateAnalysis = () => {
-    if (!selectedFile) return;
-    setShowLanguageModal(true);
-  };
-
-  // Confirm submit with chosen language
-  const handleConfirmAnalyzeWithLanguage = async (targetLang) => {
-    setShowLanguageModal(false);
+  // Submit file and analyze ONLY after clicking "Analyze and Explain"
+  const handleAnalyzeFile = async () => {
     if (!selectedFile) return;
     
     setIsUploading(true);
@@ -228,7 +221,7 @@ const MedicalReportPage = () => {
     formData.append('report', selectedFile);
     const reportType = selectedFile.type === 'application/pdf' ? 'Lab Report' : 'Medical Image';
     formData.append('reportType', reportType);
-    formData.append('targetLanguage', targetLang);
+    formData.append('targetLanguage', uploadLanguage);
 
     try {
       const res = await reportService.uploadReport(formData);
@@ -236,20 +229,20 @@ const MedicalReportPage = () => {
       if (reportData) {
         setReports(prev => [reportData, ...prev]);
         setActiveReport(reportData);
-        setSelectedLanguage(targetLang);
+        setSelectedLanguage(uploadLanguage);
       }
       setSelectedFile(null);
       setPreview(null);
       setCapturedImage(null);
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Failed to upload report.';
+      const msg = err.response?.data?.message || err.message || 'Failed to upload and analyze report.';
       setError(msg);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Translate existing active report into another language
+  // Translate existing active report into another language dynamically
   const handleTranslateReport = async (langCode) => {
     if (!activeReport || !activeReport._id || isTranslating) return;
     
@@ -320,71 +313,6 @@ const MedicalReportPage = () => {
       {/* Hidden Canvas for Camera Snapshots */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* ─── LANGUAGE SELECTION MODAL ON SUBMIT ─────────────────────────── */}
-      {showLanguageModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-100 space-y-5">
-            
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div className="flex items-center space-x-2 text-[#3D5A45]">
-                <Globe className="w-5 h-5 text-[#E07A5F]" />
-                <h3 className="font-extrabold text-base text-gray-900">
-                  Select Explanation Language
-                </h3>
-              </div>
-              <button 
-                onClick={() => setShowLanguageModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-600 leading-relaxed font-medium">
-              Choose the language in which you want AI to break down and explain your report so it is easy to understand:
-            </p>
-
-            {/* Language Grid */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {LANGUAGES.map(lang => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => setModalTargetLanguage(lang.code)}
-                  className={`p-3 rounded-2xl border text-left flex flex-col transition-all cursor-pointer ${
-                    modalTargetLanguage === lang.code
-                      ? 'border-[#3D5A45] bg-[#EEF3EF] shadow-xs ring-2 ring-[#3D5A45]/20'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="font-extrabold text-sm text-gray-900">{lang.nativeName}</span>
-                  <span className="text-[11px] text-gray-500 font-semibold">{lang.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowLanguageModal(false)}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleConfirmAnalyzeWithLanguage(modalTargetLanguage)}
-                className="flex-2 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center space-x-1.5 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-[#E07A5F]" />
-                <span>Analyze & Explain</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Left Panel: Upload / Scan & Recent Reports */}
       <div className="w-full md:w-5/12 lg:w-4/12 flex flex-col gap-6">
         
@@ -449,8 +377,8 @@ const MedicalReportPage = () => {
                   <p className="text-xs text-gray-500">PDF, JPG, or PNG (Max 10MB)</p>
                 </div>
               ) : (
-                <div className="border border-gray-200 rounded-2xl p-4 bg-gray-50/70">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="border border-gray-200 rounded-2xl p-4 bg-gray-50/70 space-y-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5 overflow-hidden">
                       <div className="p-2 bg-white rounded-xl text-[#3D5A45] border border-gray-200">
                         <FileText className="w-5 h-5 flex-shrink-0" />
@@ -469,25 +397,54 @@ const MedicalReportPage = () => {
                   </div>
                   
                   {preview && (
-                    <div className="mb-3 h-36 w-full rounded-xl overflow-hidden border border-gray-200 bg-white">
+                    <div className="h-36 w-full rounded-xl overflow-hidden border border-gray-200 bg-white">
                       <img src={preview} alt="Document Preview" className="w-full h-full object-contain" />
                     </div>
                   )}
+
+                  {/* Language Selection Step Before Analysis */}
+                  <div className="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
+                    <label className="text-xs font-extrabold text-gray-900 flex items-center space-x-1.5">
+                      <Languages className="w-4 h-4 text-[#E07A5F]" />
+                      <span>Select Explanation Language</span>
+                    </label>
+                    <p className="text-[11px] text-gray-500 font-medium leading-tight">
+                      Choose the language for full AI breakdown & explanation:
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      {LANGUAGES.map(lang => (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => setUploadLanguage(lang.code)}
+                          className={`py-2 px-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+                            uploadLanguage === lang.code
+                              ? 'border-[#3D5A45] bg-[#EEF3EF] shadow-2xs font-extrabold text-[#3D5A45] ring-1 ring-[#3D5A45]'
+                              : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold'
+                          }`}
+                        >
+                          <div className="text-xs font-extrabold">{lang.nativeName}</div>
+                          <div className="text-[9px] text-gray-400">{lang.name}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   
                   <button
-                    onClick={handleInitiateAnalysis}
+                    onClick={handleAnalyzeFile}
                     disabled={isUploading}
-                    className="w-full bg-[#3D5A45] hover:bg-[#324a3a] text-white p-3 rounded-xl font-bold text-xs transition-all shadow-xs flex justify-center items-center gap-2 cursor-pointer disabled:opacity-70"
+                    className="w-full bg-[#3D5A45] hover:bg-[#324a3a] text-white p-3.5 rounded-xl font-extrabold text-xs transition-all shadow-md flex justify-center items-center gap-2 cursor-pointer disabled:opacity-70"
                   >
                     {isUploading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Extracting & Analyzing with AI...</span>
+                        <span>Extracting & Analyzing Report...</span>
                       </>
                     ) : (
                       <>
-                        <Languages className="w-4 h-4 text-[#E07A5F]" />
-                        <span>Analyze & Select Language</span>
+                        <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                        <span>Analyze and Explain</span>
                       </>
                     )}
                   </button>
@@ -565,14 +522,40 @@ const MedicalReportPage = () => {
                   </button>
                 </div>
               ) : (
-                /* Captured Image Review */
+                /* Captured Image Review & Language Selection */
                 <div className="space-y-3">
-                  <div className="h-64 sm:h-72 w-full rounded-2xl overflow-hidden border border-gray-200 bg-black">
+                  <div className="h-48 w-full rounded-2xl overflow-hidden border border-gray-200 bg-black">
                     <img
                       src={capturedImage}
                       alt="Scanned Report"
                       className="w-full h-full object-contain"
                     />
+                  </div>
+
+                  {/* Language Selection Step Before Analysis */}
+                  <div className="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
+                    <label className="text-xs font-extrabold text-gray-900 flex items-center space-x-1.5">
+                      <Languages className="w-4 h-4 text-[#E07A5F]" />
+                      <span>Select Explanation Language</span>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                      {LANGUAGES.map(lang => (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => setUploadLanguage(lang.code)}
+                          className={`py-2 px-2.5 rounded-xl text-left transition-all cursor-pointer border ${
+                            uploadLanguage === lang.code
+                              ? 'border-[#3D5A45] bg-[#EEF3EF] shadow-2xs font-extrabold text-[#3D5A45] ring-1 ring-[#3D5A45]'
+                              : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold'
+                          }`}
+                        >
+                          <div className="text-xs font-extrabold">{lang.nativeName}</div>
+                          <div className="text-[9px] text-gray-400">{lang.name}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex gap-2">
@@ -588,9 +571,9 @@ const MedicalReportPage = () => {
 
                     <button
                       type="button"
-                      onClick={handleInitiateAnalysis}
+                      onClick={handleAnalyzeFile}
                       disabled={isUploading}
-                      className="flex-2 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-70"
+                      className="flex-2 py-3 bg-[#3D5A45] hover:bg-[#324a3a] text-white font-extrabold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-70"
                     >
                       {isUploading ? (
                         <>
@@ -599,8 +582,8 @@ const MedicalReportPage = () => {
                         </>
                       ) : (
                         <>
-                          <Languages className="w-4 h-4 text-[#E07A5F]" />
-                          <span>Analyze & Select Language</span>
+                          <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                          <span>Analyze and Explain</span>
                         </>
                       )}
                     </button>
@@ -730,10 +713,10 @@ const MedicalReportPage = () => {
                 <div className="text-center py-6">
                   <Loader2 className="w-10 h-10 text-[#3D5A45] animate-spin mx-auto mb-3" />
                   <p className="text-base font-extrabold text-gray-900">
-                    {isTranslating ? `Translating Report Explanation...` : `Analyzing Document with AI...`}
+                    {isTranslating ? `Translating Report Explanation...` : `Analyzing Entire Document with AI...`}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Generating simple, senior-friendly breakdown in {LANGUAGES.find(l => l.code === selectedLanguage)?.name || 'selected language'}
+                    Generating complete, senior-friendly breakdown in {LANGUAGES.find(l => l.code === (isUploading ? uploadLanguage : selectedLanguage))?.nativeName || 'selected language'}
                   </p>
                 </div>
                 <LoadingSkeleton className="h-24 rounded-2xl" />
