@@ -308,13 +308,13 @@ const MedicalReportPage = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto flex flex-col md:flex-row gap-6 bg-[#FDFBF7] min-h-[calc(100vh-4rem)] font-sans">
+    <div className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 bg-[#FDFBF7] min-h-[calc(100vh-4.5rem)] font-sans">
       
       {/* Hidden Canvas for Camera Snapshots */}
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Left Panel: Upload / Scan & Recent Reports */}
-      <div className="w-full md:w-5/12 lg:w-4/12 flex flex-col gap-6">
+      <div className="w-full lg:w-4/12 flex flex-col gap-6">
         
         {/* Document Intake Card */}
         <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -658,7 +658,7 @@ const MedicalReportPage = () => {
       </div>
 
       {/* Right Panel: AI Analysis Insights */}
-      <div className="w-full md:w-7/12 lg:w-8/12">
+      <div className="w-full lg:w-8/12">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 h-full flex flex-col overflow-hidden relative">
           
           {/* Header */}

@@ -78,9 +78,9 @@ const DashboardPage = () => {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full relative pb-24 md:pb-8">
       {/* Header */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-gray-100 shadow-xs">
+      <div className="flex justify-between items-center bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Good Morning, {user?.name?.split(' ')[0] || 'User'}</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900">Good Morning, {user?.name?.split(' ')[0] || 'User'}</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Welcome back to your ZYVEN healthcare portal</p>
         </div>
         
