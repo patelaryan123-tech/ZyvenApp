@@ -3,7 +3,7 @@ const Medication = require('../models/Medication');
 const MedicationAdherence = require('../models/MedicationAdherence');
 const EmergencyEvent = require('../models/EmergencyEvent');
 const CareLog = require('../models/CareLog');
-const Vitals = require('../models/Vitals');
+const Vital = require('../models/Vital');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllUsers = async (req, res) => {
@@ -142,13 +142,14 @@ const getLinkedUsers = async (req, res) => {
 
         // Last Vitals
         let lastVitalsObj = { bp: '120/80', sugar: '100 mg/dL', recorded: 'Today' };
-        if (Vitals) {
-          const latestVital = await Vitals.findOne({ seniorId: patientId }).sort({ createdAt: -1 });
-          if (latestVital) {
+        if (Vital) {
+          const latestBp = await Vital.findOne({ userId: patientId, type: 'BP' }).sort({ measuredAt: -1, createdAt: -1 });
+          const latestSugar = await Vital.findOne({ userId: patientId, type: 'BloodSugar' }).sort({ measuredAt: -1, createdAt: -1 });
+          if (latestBp || latestSugar) {
             lastVitalsObj = {
-              bp: latestVital.systolic ? `${latestVital.systolic}/${latestVital.diastolic}` : '120/80',
-              sugar: latestVital.bloodSugar ? `${latestVital.bloodSugar} mg/dL` : '100 mg/dL',
-              recorded: new Date(latestVital.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              bp: latestBp?.systolic ? `${latestBp.systolic}/${latestBp.diastolic}` : '120/80',
+              sugar: latestSugar?.value ? `${latestSugar.value} mg/dL` : '100 mg/dL',
+              recorded: new Date((latestBp || latestSugar).measuredAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
           }
         }
