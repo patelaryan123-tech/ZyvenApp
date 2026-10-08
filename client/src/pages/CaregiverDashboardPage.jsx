@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Activity, Bell, ShieldAlert, Heart, Calendar, Clock,
-  AlertTriangle, CheckCircle, XCircle, Phone, FileText,
+  AlertTriangle, AlertCircle, CheckCircle, XCircle, Phone, FileText,
   PlusCircle, TrendingUp, Pill, Zap, ChevronRight, User, MessageSquare,
   Trash2, Search, X, Loader2, Sparkles
 } from 'lucide-react';
