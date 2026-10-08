@@ -374,7 +374,9 @@ export default function CaregiverDashboardPage() {
                               <div className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[selectedPatient.status]?.dot}`} />
                               {selectedPatient.status} Status
                             </span>
-                            <span className="text-[10px] text-gray-400 font-mono">ID: {selectedPatient._id.slice(-6)}</span>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              ID: {selectedPatient?._id ? String(selectedPatient._id).slice(-6) : 'N/A'}
+                            </span>
                           </div>
                         </div>
                       </div>
