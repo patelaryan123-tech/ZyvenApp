@@ -473,6 +473,58 @@ export default function EmergencyPage() {
             <p>2. Automated HTML email with Google Maps directions is delivered to all listed contacts.</p>
             <p>3. Always dial 112 / 108 for national emergency services if immediate paramedic attention is required.</p>
           </div>
+
+          {/* 🌟 Senior Emergency Medical Pass Card */}
+          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-emerald-950 p-6 rounded-3xl text-white shadow-xl space-y-4 border border-gray-700 relative overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-700 pb-3">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="w-5 h-5 text-[#E07A5F]" />
+                <span className="text-xs font-black uppercase tracking-wider text-green-300">
+                  Emergency Medical Pass
+                </span>
+              </div>
+              <span className="text-[10px] font-extrabold bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">
+                Paramedic Quick Scan
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-base font-black text-white">{user?.name || 'Senior Patient'}</h4>
+                <p className="text-xs text-gray-300 font-medium">
+                  Age: {user?.age || 65} yrs &bull; Blood: O+ (Universal)
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  Phone: {user?.phone || 'Emergency Contact On File'}
+                </p>
+              </div>
+
+              {/* Dynamic QR SVG Representation */}
+              <div className="bg-white p-2 rounded-2xl shrink-0 shadow-md flex flex-col items-center">
+                <svg className="w-16 h-16" viewBox="0 0 100 100">
+                  <rect width="100" height="100" fill="white" />
+                  <path d="M10,10 h30 v30 h-30 z M15,15 h20 v20 h-20 z M22,22 h6 v6 h-6 z" fill="black" />
+                  <path d="M60,10 h30 v30 h-30 z M65,15 h20 v20 h-20 z M72,22 h6 v6 h-6 z" fill="black" />
+                  <path d="M10,60 h30 v30 h-30 z M15,65 h20 v20 h-20 z M22,72 h6 v6 h-6 z" fill="black" />
+                  <rect x="45" y="45" width="10" height="10" fill="#D90429" />
+                  <rect x="60" y="60" width="15" height="15" fill="black" />
+                  <rect x="75" y="75" width="15" height="15" fill="black" />
+                  <rect x="45" y="75" width="15" height="10" fill="black" />
+                </svg>
+                <span className="text-[8px] font-extrabold text-gray-700 mt-1 uppercase">ZYVEN ID PASS</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between text-xs border-t border-gray-800 text-gray-300">
+              <span>Primary Emergency Contact: {contacts[0]?.name || 'Caregiver on standby'}</span>
+              <button 
+                onClick={() => window.print()} 
+                className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold rounded-xl border border-white/20 cursor-pointer"
+              >
+                🖨️ Print Pass
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>
