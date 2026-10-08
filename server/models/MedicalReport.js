@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const aiAnalysisSchema = new mongoose.Schema({
   summary: { type: String },
+  riskLevel: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Low' },
   keyFindings: [{ type: String }],
   abnormalValues: [{ type: String }],
   recommendations: [{ type: String }],

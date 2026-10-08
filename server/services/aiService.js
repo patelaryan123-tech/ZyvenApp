@@ -224,6 +224,7 @@ ${extractedText}
 
 Respond ONLY in this exact JSON format (all text inside string values MUST be in ${langName}):
 {
+  "riskLevel": "High" or "Medium" or "Low" (Categorize overall health risk level: "High" for severe/multiple critical abnormal metrics requiring prompt medical attention, "Medium" for moderate abnormalities/monitoring needed, "Low" for safe/normal report parameters),
   "summary": "Clear, compassionate, simple overall summary of the report written in ${langName}",
   "keyFindings": ["Key finding 1 explained simply in ${langName}", "Key finding 2 in ${langName}"],
   "abnormalValues": ["Abnormal metric 1 with simple explanation in ${langName}"],
@@ -234,7 +235,23 @@ Respond ONLY in this exact JSON format (all text inside string values MUST be in
     const rawResponse = await callAI(prompt, systemPrompt);
     const parsed = extractJSON(rawResponse);
 
-    if (parsed && parsed.summary) return parsed;
+    if (parsed && parsed.summary) {
+      // Normalize riskLevel
+      let riskLevel = 'Low';
+      const rawRisk = String(parsed.riskLevel || '').toLowerCase();
+      if (rawRisk.includes('high') || rawRisk.includes('red') || rawRisk.includes('critical') || rawRisk.includes('severe')) {
+        riskLevel = 'High';
+      } else if (rawRisk.includes('medium') || rawRisk.includes('yellow') || rawRisk.includes('moderat') || rawRisk.includes('warn')) {
+        riskLevel = 'Medium';
+      } else if (rawRisk.includes('low') || rawRisk.includes('green') || rawRisk.includes('safe') || rawRisk.includes('normal')) {
+        riskLevel = 'Low';
+      } else {
+        const abCount = Array.isArray(parsed.abnormalValues) ? parsed.abnormalValues.length : 0;
+        riskLevel = abCount >= 2 ? 'High' : (abCount === 1 ? 'Medium' : 'Low');
+      }
+      parsed.riskLevel = riskLevel;
+      return parsed;
+    }
   } catch (error) {
     console.warn(`AI report analysis fallback invoked for language '${langName}':`, error.message);
   }
@@ -242,6 +259,7 @@ Respond ONLY in this exact JSON format (all text inside string values MUST be in
   // Graceful senior-friendly fallback analysis per language if AI model is rate limited
   const fallbacks = {
     'hi': {
+      riskLevel: 'Medium',
       summary: 'यह आपकी मेडिकल रिपोर्ट का सार है। रिपोर्ट में दिए गए मुख्य स्वास्थ्य संकेतकों का विश्लेषण किया गया है। कृपया अपने डॉक्टर से परामर्श करें।',
       keyFindings: ['रक्त शर्करा और अन्य परीक्षण संकेतकों का नियमित परीक्षण आवश्यक है।', 'समग्र स्वास्थ्य स्थिति में निरंतर निगरानी की सलाह दी जाती है।'],
       abnormalValues: ['ग्लूकोज या कोलेस्ट्रॉल स्तर ध्यान देने योग्य हो सकते हैं।'],
@@ -249,6 +267,7 @@ Respond ONLY in this exact JSON format (all text inside string values MUST be in
       questionsForDoctor: ['क्या मेरी दवाओं की खुराक में कोई बदलाव करने की आवश्यकता है?']
     },
     'mr': {
+      riskLevel: 'Medium',
       summary: 'हे तुमच्या वैद्यकीय अहवालाचे संक्षिप्त विश्लेषण आहे. नियमित तपासणी आणि डॉक्टरांचा सल्ला आवश्यक आहे.',
       keyFindings: ['आरोग्य निर्देशकांची नियमित नोंद ठेवावी.', 'वेळेवर औषधे घेणे आवश्यक आहे.'],
       abnormalValues: ['काही घटकांमध्ये तफावत आढळू शकते.'],
@@ -256,6 +275,7 @@ Respond ONLY in this exact JSON format (all text inside string values MUST be in
       questionsForDoctor: ['माझ्या सध्याच्या औषधांमध्ये बदल करण्याची गरज आहे का?']
     },
     'ta': {
+      riskLevel: 'Medium',
       summary: 'இது உங்கள் மருத்துவ அறிக்கையின் எளிய சுருக்கம். துல்லியமான ஆலோசனைக்கு மருத்துவரை அணுகவும்.',
       keyFindings: ['ரத்த சர்க்கரை மற்றும் முக்கிய பரிசோதனைகளை கண்காணிக்க வேண்டும்.'],
       abnormalValues: ['சில அளவீடுகளில் மாறுபாடு இருக்கலாம்.'],
@@ -263,6 +283,7 @@ Respond ONLY in this exact JSON format (all text inside string values MUST be in
       questionsForDoctor: ['மருந்தளவில் மாற்றம் ஏதேனும் தேவையா?']
     },
     'en': {
+      riskLevel: 'Medium',
       summary: 'This is a clear breakdown of your medical report findings. Key health metrics have been parsed for your doctor review.',
       keyFindings: ['Routine monitoring of blood glucose and vital markers is recommended.', 'Maintain regular adherence to prescribed medications.'],
       abnormalValues: ['Elevated metabolic indicators or cholesterol metrics may require review.'],
