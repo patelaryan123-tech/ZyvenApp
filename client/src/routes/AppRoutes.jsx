@@ -24,6 +24,7 @@ const CaregiverDashboardPage = lazy(() => import('../pages/CaregiverDashboardPag
 const VitalsPage = lazy(() => import('../pages/VitalsPage'));
 const SymptomCheckerPage = lazy(() => import('../pages/SymptomCheckerPage'));
 const ActiveAgingPage = lazy(() => import('../pages/ActiveAgingPage'));
+const ClinicalPassportPage = lazy(() => import('../pages/ClinicalPassportPage'));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -50,6 +51,12 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<DashboardPage />} />
           
+          <Route path="/clinical-passport" element={
+            <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
+              <ClinicalPassportPage />
+            </RoleRoute>
+          } />
+
           <Route path="/vitals" element={
             <RoleRoute allowedRoles={[ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER]}>
               <VitalsPage />

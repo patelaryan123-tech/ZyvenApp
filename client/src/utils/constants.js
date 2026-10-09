@@ -9,7 +9,8 @@ import {
   Users,
   Activity,
   Stethoscope,
-  Sparkles
+  Sparkles,
+  ClipboardList
 } from 'lucide-react';
 
 export const ROLES = {
@@ -31,6 +32,7 @@ export const LANGUAGES = [
 
 export const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: Home, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
+  { path: '/clinical-passport', label: 'Doctor Passport', icon: ClipboardList, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/vitals', label: 'Vitals Tracker', icon: Activity, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/symptom-checker', label: 'AI Symptom Checker', icon: Stethoscope, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
   { path: '/active-aging', label: 'Active Aging', icon: Sparkles, roles: [ROLES.SENIOR, ROLES.CAREGIVER, ROLES.FAMILY_MEMBER] },
